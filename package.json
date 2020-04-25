@@ -1,0 +1,33 @@
+{
+  "name": "random",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:dev": "NODE_ENV=test TZ=UTC ts-node-dev --transpile-only --respawn --inspect -- src/test.ts keepAlive"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "gulp-sourcemaps": "2.6.5",
+    "lodash": "4.17.15",
+    "moment": "2.24.0",
+    "typescript": "3.8.3",
+    "ts-node": "8.6.2",
+    "shelljs": "0.8.3"
+  },
+  "devDependencies": {
+    "@types/lodash": "4.14.149",
+    "@types/node": "13.9.3",
+    "@types/jasmine": "3.5.3",
+    "@types/shelljs": "0.8.6",
+    "intl": "1.2.5",
+    "jasmine": "3.5.0",
+    "jasmine-core": "3.5.0",
+    "jasmine-spec-reporter": "5.0.1",
+    "node-watch": "0.6.3",
+    "reflect-metadata": "0.1.13",
+    "ts-node-dev": "1.0.0-pre.44"
+  }
+}

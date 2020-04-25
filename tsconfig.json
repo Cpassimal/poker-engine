@@ -1,0 +1,20 @@
+{
+  "files": [
+    "src/main.ts",
+    "src/tools/helper.ts",
+    "src/tools/interfaces.ts",
+    "src/parse.ts",
+    "src/simulate.ts"
+  ],
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "target": "es5",
+    "lib": [
+      "dom",
+      "es5",
+      "scripthost",
+      "es2015.promise",
+      "es2015.collection"
+    ]
+  }
+}
