@@ -1,29 +1,20 @@
+import { orderBy } from 'lodash';
+
 import {
   calculateHand,
+  calculatePots,
+  compareHands,
   dealCards,
   getCardLabel,
-  getHandLabel,
   getInitialDeck,
   getNewPosition,
   getPlayerLabel,
   pickCard,
   randomInt,
   setInitiative,
-  sortHands
 } from './tools/helper';
-import {
-  Decision,
-  IBoard,
-  ICard,
-  IHand,
-  IPlayer
-} from './tools/interfaces';
-import {
-  player1,
-  player2,
-  player3,
-  player4
-} from './tools/data';
+import { Decision, IBoard, ICard, IHand, IPlayer } from './tools/interfaces';
+import { player1, player2, player3, player4 } from './tools/data';
 
 let pot = 0;
 const sb = 10;
@@ -137,39 +128,7 @@ export function initGame() {
 function endGame(
   board?: IBoard,
 ): void {
-  if (!board) {
-    const winner = players.find(p => !p.hasFolded);
-
-    winner.bank += pot;
-  } else {
-    setWinOrder(players.filter(p => !p.hasFolded), board);
-
-    // console.table(
-    //   players.map(p => ({
-    //     name: p.name,
-    //     cards: p.cards.map(getCardLabel),
-    //     hand: getHandLabel(p.hand),
-    //   })),
-    // );
-
-    const winners = players.filter(w => w.hasWon);
-    const losers = players.filter(w => !w.hasWon);
-
-    const highestWonBet = Math.max(...winners.map(p => p.inRoundAmount));
-
-    for (const loser of losers) {
-      if (loser.inRoundAmount > highestWonBet) {
-        const refund = loser.inRoundAmount - highestWonBet;
-        loser.bank += refund;
-        pot -= refund;
-      }
-    }
-
-    for (const winner of winners) {
-       winner.bank += winner.inRoundAmount;
-       pot -= winner.inRoundAmount;
-    }
-  }
+  distributePot(players, board)
 
   console.log('--- STATE --- ');
   console.table(
@@ -273,14 +232,14 @@ function playStreet(
 
     if (nbrOfTurn === 10) {
       console.log('SECURITY HIT');
-      
+
       break;
     }
   } while (
     players.filter(p => p.hasFolded).length < players.length - 1
     && players.filter(p => p.isAllIn).length < players.length
     && !players.filter(p => !p.hasFolded).every(p => p.inRoundAmount === asked || p.isAllIn)
-  )
+    );
 }
 
 function bet(
@@ -303,10 +262,30 @@ function bet(
   return betValue;
 }
 
-function setWinOrder(
+export function getWinnersOrder(
   players: IPlayer[],
   board: IBoard,
-): void {
+): IHand[][] {
+  players = players.filter(p => !p.hasFolded);
+
+  if (players.length === 1) {
+    // only one player, natural winner
+    // since he did not fold, he is part of every pots
+    const player = players[0];
+
+    return [
+      [
+        {
+          playerId: player.id,
+        }
+      ]
+    ]
+  }
+
+  if (!board) {
+    throw new Error('A board is needed to get winners order with more than one player')
+  }
+
   const boardCards: ICard[] = [board.flop1, board.flop2, board.flop3, board.turn, board.river];
 
   const hands: IHand[] = [];
@@ -318,19 +297,83 @@ function setWinOrder(
     ]);
 
     hand.playerId = player.id;
-    hand.id = `${hand.type}_${hand.height}_${hand.height2}_${hand.kicker1}_${hand.kicker2}_${hand.kicker3}_${hand.kicker4}`;
+
+    hand.id = [
+      hand.type,
+      hand.height,
+      hand.height2,
+      hand.kicker1?.rank,
+      hand.kicker2?.rank,
+      hand.kicker3?.rank,
+      hand.kicker4?.rank,
+    ]
+    .map(h => h ? h : '-')
+    .join('_');
 
     player.hand = hand;
 
     hands.push(hand);
   }
 
-  const sortedHands = hands.sort(sortHands);
-  const bestHand = sortedHands[0];
+  const sortedHands = hands.sort(compareHands);
+
+  const groupedHands: IHand[][] = [];
+
+  for (const hand of sortedHands) {
+    let group = groupedHands.find(hands => compareHands(hands[0], hand) === 0);
+
+    if (!group) {
+      group = [];
+      groupedHands.push(group);
+    }
+
+    group.push(hand);
+  }
+
+  return groupedHands;
+}
+
+export function distributePot(
+  players: IPlayer[],
+  board: IBoard,
+): void {
+  const pots = calculatePots(players);
+  const handGroups = getWinnersOrder(players, board);
+
+  for (const pot of pots) {
+    const potWinnerGroup = handGroups.find(hg => hg.some(h => pot.playerIds.includes(h.playerId)));
+    const potWinners = potWinnerGroup.filter(h => pot.playerIds.includes(h.playerId));
+
+    const share = Math.round(pot.amount / potWinners.length);
+    let distributed = 0;
+
+    for (const potWinner of potWinners) {
+      const player = players.find(p => p.id === potWinner.playerId);
+      player.bank += share;
+      distributed += share;
+    }
+
+    // because of rounding, distributed could be !== as pot amount
+    const delta = pot.amount - distributed;
+
+    if (delta) {
+      const potWinnerPlayers = potWinners.map(pw => players.find(p => p.id === pw.playerId));
+
+      // in order to have a consistent rule
+      // if delta > 0 we adjust with lowest bank
+      // if delta < 0 we adjust with the highest bank
+      // in case of identical banks adjust with the highest id
+      const playerToAdjust = orderBy(
+        potWinnerPlayers,
+        ['bank', 'id'],
+        [delta > 0 ? 'desc' : 'desc', 'desc'],
+      )[0];
+
+      playerToAdjust.bank += delta;
+    }
+  }
 
   for (const player of players) {
-    if (player.hand.id === bestHand.id) {
-      player.hasWon = true;
-    }
+    player.inPotAmount = 0.;
   }
 }

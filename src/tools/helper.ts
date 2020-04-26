@@ -8,7 +8,7 @@ import {
   HandType,
   ICard,
   IHand,
-  IPlayer
+  IPlayer, IPot,
 } from './interfaces';
 
 export function randomInt(min: number = 0, max: number = 100) {
@@ -17,7 +17,7 @@ export function randomInt(min: number = 0, max: number = 100) {
     || max < 0
     || min < 0
   ) {
-    throw Error('invalid inputs')
+    throw new Error('invalid inputs')
   }
 
   return Math.floor(Math.random() * (max - min + 1) + min);
@@ -94,50 +94,36 @@ export function getCardLabel(c: ICard): string {
 
 const sortByRank = (c1: ICard, c2: ICard) => c2.rank < c1.rank ? 1 : -1;
 
-export const sortHands = (h1: IHand, h2: IHand) => {
-  if (h2.type > h1.type) {
-    return 1;
-  } else if (h2.type < h1.type) {
-    return -1;
+export const compareHands = (h1: IHand, h2: IHand): number => {
+  if (h2.type !== h1.type) {
+    return h2.type - h1.type;
   }
 
-  if (h2.height > h1.height) {
-    return 1;
-  } else if (h2.height < h1.height) {
-    return -1;
+  if (h2.height !== h1.height) {
+    return h2.height - h1.height;
   }
 
-  if (h2.height2 > h1.height2) {
-    return 1;
-  } else if (h2.height2 < h1.height2) {
-    return -1;
+  if (h2.height2 !== h1.height2) {
+    return h2.height2 - h1.height2;
   }
 
-  if (h2.kicker1?.rank > h1.kicker1?.rank) {
-    return 1;
-  } else if (h2.kicker1?.rank < h1.kicker1?.rank) {
-    return -1;
+  if (h2.kicker1?.rank !== h1.kicker1?.rank) {
+    return h2.kicker1?.rank - h1.kicker1?.rank;
   }
 
-  if (h2.kicker2?.rank > h1.kicker2?.rank) {
-    return 1;
-  } else if (h2.kicker2?.rank < h1.kicker2?.rank) {
-    return -1;
+  if (h2.kicker2?.rank !== h1.kicker2?.rank) {
+    return h2.kicker2?.rank - h1.kicker2?.rank;
   }
 
-  if (h2.kicker3?.rank > h1.kicker3?.rank) {
-    return 1;
-  } else if (h2.kicker3?.rank < h1.kicker3?.rank) {
-    return -1;
+  if (h2.kicker3?.rank !== h1.kicker3?.rank) {
+    return h2.kicker3?.rank - h1.kicker3?.rank;
   }
 
-  if (h2.kicker4?.rank > h1.kicker4?.rank) {
-    return 1;
-  } else if (h2.kicker4?.rank < h1.kicker4?.rank) {
-    return -1;
+  if (h2.kicker4?.rank !== h1.kicker4?.rank) {
+    return h2.kicker4?.rank - h1.kicker4?.rank;
   }
 
-  return -1;
+  return 0;
 };
 
 /**
@@ -332,7 +318,7 @@ export function calculateHand(cards: ICard[]): IHand {
   }
 
   if (flushes.length) {
-    flushes.sort(sortHands);
+    flushes.sort(compareHands);
 
     return flushes[0];
   }
@@ -399,7 +385,7 @@ export function calculateHand(cards: ICard[]): IHand {
   }
 
   if (threeOfKinds.length) {
-    threeOfKinds.sort(sortHands);
+    threeOfKinds.sort(compareHands);
 
     return threeOfKinds[0];
   }
@@ -436,7 +422,7 @@ export function calculateHand(cards: ICard[]): IHand {
   }
 
   if (twoPairs.length) {
-    twoPairs.sort(sortHands);
+    twoPairs.sort(compareHands);
 
     return twoPairs[0];
   }
@@ -467,7 +453,7 @@ export function calculateHand(cards: ICard[]): IHand {
   }
 
   if (pairs.length) {
-    pairs.sort(sortHands);
+    pairs.sort(compareHands);
 
     return pairs[0];
   }
@@ -489,7 +475,7 @@ export function calculateHand(cards: ICard[]): IHand {
     });
   }
 
-  return highCards.sort(sortHands)[0];
+  return highCards.sort(compareHands)[0];
 }
 
 export function getHandLabel(hand: IHand): string {
@@ -554,4 +540,42 @@ export function getPlayerLabel(player: IPlayer, nbrPlayers: number): string {
   }
 
   return `${player.name} (${positionLabel})`;
+}
+
+export function comparePlayerPerPot(
+  p1: IPlayer,
+  p2: IPlayer,
+): number {
+  return p1.inPotAmount - p2.inPotAmount;
+}
+
+export function calculatePots(
+  players: IPlayer[]
+): IPot[] {
+  const pots: IPot[] = [];
+
+  const sortedPlayers = [...players].sort(comparePlayerPerPot);
+
+  for (const player of sortedPlayers) {
+    let toDistribute = player.inPotAmount;
+
+    while (toDistribute) {
+      const existingPot = pots.find(p => p.size <= toDistribute && !p.playerIds.includes(player.id));
+
+      if (existingPot) {
+        toDistribute -= existingPot.size;
+        existingPot.playerIds.push(player.id);
+        existingPot.amount += existingPot.size;
+      } else {
+        pots.push({
+          playerIds: [player.id],
+          size: toDistribute,
+          amount: toDistribute,
+        });
+        toDistribute = 0;
+      }
+    }
+  }
+
+  return pots;
 }
