@@ -9,7 +9,7 @@ export const player1: IPlayer = {
   cards: [],
   isAllIn: false,
   inPotAmount: 0,
-  inRoundAmount: 0,
+  inStreetAmount: 0,
   position: 1,
 }
 
@@ -20,7 +20,7 @@ export const player2: IPlayer = {
   cards: [],
   isAllIn: false,
   inPotAmount: 0,
-  inRoundAmount: 0,
+  inStreetAmount: 0,
   position: 2,
 }
 
@@ -31,7 +31,7 @@ export const player3: IPlayer = {
   cards: [],
   isAllIn: false,
   inPotAmount: 0,
-  inRoundAmount: 0,
+  inStreetAmount: 0,
   position: 3,
 }
 
@@ -42,6 +42,6 @@ export const player4: IPlayer = {
   cards: [],
   isAllIn: false,
   inPotAmount: 0,
-  inRoundAmount: 0,
+  inStreetAmount: 0,
   position: 4,
 }
