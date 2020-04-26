@@ -326,33 +326,6 @@ describe('calculateHand', () => {
 });
 
 describe('end game', () => {
-  const expectPlayer = player => {
-    expect(player.inPotAmount).toBeGreaterThanOrEqual(0);
-    expect(player.bank).toBeGreaterThanOrEqual(0);
-
-    expect(player.inPotAmount).toBe(Math.round(player.inPotAmount));
-    expect(player.bank).toBe(Math.round(player.bank));
-  };
-
-  const testIntegrityWrapper = (players: IPlayer[], executeTests: Function) => {
-    for (const player of players) {
-      expectPlayer(player);
-    }
-
-    const totalBanksBefore = sumBy(players, p => p.bank);
-    const totalInPotsBefore = sumBy(players, p => p.inPotAmount);
-    executeTests();
-    const totalInPotsAfter = sumBy(players, p => p.inPotAmount);
-    const totalBanksAfter = sumBy(players, p => p.bank);
-
-    expect(totalInPotsAfter).toBe(0);
-    expect(totalBanksAfter).toBe(totalBanksBefore + totalInPotsBefore);
-
-    for (const player of players) {
-      expectPlayer(player);
-    }
-  };
-
   describe('3 all-ins over 5', () => {
     const cards = getCards(['S_2', 'C_3', 'H_4', 'D_5', 'D_7']);
     const board: IBoard = {
@@ -474,7 +447,36 @@ describe('end game', () => {
           withBank2.cards = third;
           allIn3.cards = fourth;
 
-          testIntegrityWrapper(players, () => {
+          const initialPlayersBank: Map<number, number> = new Map<number, number>([
+            [allIn1.id, allIn1.bank],
+            [allIn2.id, allIn2.bank],
+            [withBank1.id, withBank1.bank],
+            [withBank2.id, withBank2.bank],
+            [allIn3.id, allIn3.bank],
+          ]);
+
+          distributePot(players, board);
+
+          expect(allIn1.bank).toBe(initialPlayersBank.get(allIn1.id) + 2005 / 2 + 0.5); // gets 0.5 to round to cent
+          expect(allIn2.bank).toBe(initialPlayersBank.get(allIn2.id) + 2005 / 2 - 0.5 + 796 + 600); // loses 0.5 to round to cent
+          expect(withBank1.bank).toBe(initialPlayersBank.get(withBank1.id) + 2400);
+          expect(withBank2.bank).toBe(initialPlayersBank.get(withBank2.id));
+          expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
+        });
+
+        describe('one player wins over the remaining ones but could not bet with them because of his bank', () => {
+          it('should distribute and split pots to the winners', () => {
+            // allIn1 and allIn2 ties
+            // they get half the pot they are in
+            // allIn3 wins over withBank1 and withBank2 but could not bet with them, gets nothing
+            // withBank1 wins over withBank2
+            // withBank1 gets the other pots
+            allIn1.cards = winner1Cards;
+            allIn2.cards = winner2Cards;
+            withBank1.cards = third;
+            withBank2.cards = fourth;
+            allIn3.cards = second;
+
             const initialPlayersBank: Map<number, number> = new Map<number, number>([
               [allIn1.id, allIn1.bank],
               [allIn2.id, allIn2.bank],
@@ -492,39 +494,6 @@ describe('end game', () => {
             expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
           });
         });
-
-        describe('one player wins over the remaining ones but could not bet with them because of his bank', () => {
-          it('should distribute and split pots to the winners', () => {
-            // allIn1 and allIn2 ties
-            // they get half the pot they are in
-            // allIn3 wins over withBank1 and withBank2 but could not bet with them, gets nothing
-            // withBank1 wins over withBank2
-            // withBank1 gets the other pots
-            allIn1.cards = winner1Cards;
-            allIn2.cards = winner2Cards;
-            withBank1.cards = third;
-            withBank2.cards = fourth;
-            allIn3.cards = second;
-
-            testIntegrityWrapper(players, () => {
-              const initialPlayersBank: Map<number, number> = new Map<number, number>([
-                [allIn1.id, allIn1.bank],
-                [allIn2.id, allIn2.bank],
-                [withBank1.id, withBank1.bank],
-                [withBank2.id, withBank2.bank],
-                [allIn3.id, allIn3.bank],
-              ]);
-
-              distributePot(players, board);
-
-              expect(allIn1.bank).toBe(initialPlayersBank.get(allIn1.id) + 2005 / 2 + 0.5); // gets 0.5 to round to cent
-              expect(allIn2.bank).toBe(initialPlayersBank.get(allIn2.id) + 2005 / 2 - 0.5 + 796 + 600); // loses 0.5 to round to cent
-              expect(withBank1.bank).toBe(initialPlayersBank.get(withBank1.id) + 2400);
-              expect(withBank2.bank).toBe(initialPlayersBank.get(withBank2.id));
-              expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
-            });
-          });
-        });
       });
 
       describe('one has folded', () => {
@@ -540,29 +509,27 @@ describe('end game', () => {
           withBank2.cards = third;
           allIn3.cards = fourth;
 
-          testIntegrityWrapper(players, () => {
-            allIn1.hasFolded = false;
-            allIn2.hasFolded = false;
-            withBank1.hasFolded = true;
-            withBank2.hasFolded = false;
-            allIn3.hasFolded = false;
+          allIn1.hasFolded = false;
+          allIn2.hasFolded = false;
+          withBank1.hasFolded = true;
+          withBank2.hasFolded = false;
+          allIn3.hasFolded = false;
 
-            const initialPlayersBank: Map<number, number> = new Map<number, number>([
-              [allIn1.id, allIn1.bank],
-              [allIn2.id, allIn2.bank],
-              [withBank1.id, withBank1.bank],
-              [withBank2.id, withBank2.bank],
-              [allIn3.id, allIn3.bank],
-            ]);
+          const initialPlayersBank: Map<number, number> = new Map<number, number>([
+            [allIn1.id, allIn1.bank],
+            [allIn2.id, allIn2.bank],
+            [withBank1.id, withBank1.bank],
+            [withBank2.id, withBank2.bank],
+            [allIn3.id, allIn3.bank],
+          ]);
 
-            distributePot(players, board);
+          distributePot(players, board);
 
-            expect(allIn1.bank).toBe(initialPlayersBank.get(allIn1.id) + 2005 / 2 + 0.5); // gets 0.5 to round to cent
-            expect(allIn2.bank).toBe(initialPlayersBank.get(allIn2.id) + 2005 / 2 - 0.5 + 796 + 600); // loses 0.5 to round to cent
-            expect(withBank1.bank).toBe(initialPlayersBank.get(withBank1.id));
-            expect(withBank2.bank).toBe(initialPlayersBank.get(withBank2.id) + 2400);
-            expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
-          });
+          expect(allIn1.bank).toBe(initialPlayersBank.get(allIn1.id) + 2005 / 2 + 0.5); // gets 0.5 to round to cent
+          expect(allIn2.bank).toBe(initialPlayersBank.get(allIn2.id) + 2005 / 2 - 0.5 + 796 + 600); // loses 0.5 to round to cent
+          expect(withBank1.bank).toBe(initialPlayersBank.get(withBank1.id));
+          expect(withBank2.bank).toBe(initialPlayersBank.get(withBank2.id) + 2400);
+          expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
         });
       });
     });

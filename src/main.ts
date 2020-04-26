@@ -1,4 +1,4 @@
-import { orderBy } from 'lodash';
+import { orderBy, sumBy } from 'lodash';
 
 import {
   calculateHand,
@@ -45,7 +45,7 @@ export function initGame() {
     player.cards = [];
     player.isAllIn = false;
     player.inPotAmount = 0;
-    player.inRoundAmount = 0;
+    player.inStreetAmount = 0;
     player.hasFolded = false;
     player.position = getNewPosition(player, players.length);
   }
@@ -67,8 +67,8 @@ export function initGame() {
    * FLOP
    */
   for (const player of players) {
-    player.inPotAmount = player.inRoundAmount;
-    player.inRoundAmount = 0;
+    player.inPotAmount = player.inStreetAmount;
+    player.inStreetAmount = 0;
     player.hasInitiative = false;
   }
 
@@ -86,8 +86,8 @@ export function initGame() {
    * TURN
    */
   for (const player of players) {
-    player.inPotAmount += player.inRoundAmount;
-    player.inRoundAmount = 0;
+    player.inPotAmount += player.inStreetAmount;
+    player.inStreetAmount = 0;
     player.hasInitiative = false;
   }
 
@@ -103,8 +103,8 @@ export function initGame() {
    * RIVER
    */
   for (const player of players) {
-    player.inPotAmount += player.inRoundAmount;
-    player.inRoundAmount = 0;
+    player.inPotAmount += player.inStreetAmount;
+    player.inStreetAmount = 0;
     player.hasInitiative = false;
   }
 
@@ -114,10 +114,18 @@ export function initGame() {
 
   playStreet();
 
+  /**
+   * RIVER
+   */
+  for (const player of players) {
+    player.inPotAmount += player.inStreetAmount;
+    player.inStreetAmount = 0;
+    player.hasInitiative = false;
+  }
+
   console.log('POT: ', pot);
   console.log('FINAL BOARD');
   console.table(Object.keys(board).map(key => getCardLabel(board[key])));
-  console.log('---------- END ----------');
 
   /**
    * END
@@ -130,13 +138,13 @@ function endGame(
 ): void {
   distributePot(players, board)
 
-  console.log('--- STATE --- ');
   console.table(
     players.map(p => ({
       name: p.name,
       bank: p.bank,
     })),
   );
+  console.log('---------- END ----------');
 }
 
 function playStreet(
@@ -163,13 +171,13 @@ function playStreet(
         if (!player.isAllIn) {
           availableDecisions.push(Decision.Bet);
         }
-      } else if (asked > player.inRoundAmount) {
+      } else if (asked > player.inStreetAmount) {
         availableDecisions = [Decision.Fold, Decision.Call];
 
-        if (player.bank > (asked - player.inRoundAmount)) {
+        if (player.bank > (asked - player.inStreetAmount)) {
           availableDecisions.push(Decision.Raise);
         }
-      } else if (asked === player.inRoundAmount) {
+      } else if (asked === player.inStreetAmount) {
         availableDecisions = [Decision.Check, Decision.Raise];
       }
 
@@ -192,36 +200,36 @@ function playStreet(
           asked = bet(player, betValue);
           setInitiative(players, player);
 
-          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inRoundAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
+          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
           break;
         }
         case Decision.Call: {
-          const betValue = bet(player, asked - player.inRoundAmount);
+          const betValue = bet(player, asked - player.inStreetAmount);
 
-          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inRoundAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
+          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
           break;
         }
         case Decision.Fold: {
           player.hasFolded = true;
 
-          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, (in street pot: ${player.inRoundAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
+          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
           break;
         }
         case Decision.Raise: {
           const raiseValue = asked * 3;
           const betValue = bet(player, raiseValue);
-          asked = player.inRoundAmount;
+          asked = player.inStreetAmount;
           setInitiative(players, player);
 
-          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inRoundAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
+          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
           break;
         }
         case Decision.Check: {
-          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, (in street pot: ${player.inRoundAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
+          console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
           break;
         }
@@ -238,8 +246,8 @@ function playStreet(
   } while (
     players.filter(p => p.hasFolded).length < players.length - 1
     && players.filter(p => p.isAllIn).length < players.length
-    && !players.filter(p => !p.hasFolded).every(p => p.inRoundAmount === asked || p.isAllIn)
-    );
+    && !players.filter(p => !p.hasFolded).every(p => p.inStreetAmount === asked || p.isAllIn)
+  );
 }
 
 function bet(
@@ -257,7 +265,7 @@ function bet(
 
   pot += betValue;
   player.bank -= betValue;
-  player.inRoundAmount += betValue;
+  player.inStreetAmount += betValue;
 
   return betValue;
 }
@@ -333,47 +341,78 @@ export function getWinnersOrder(
   return groupedHands;
 }
 
+const assertPlayer = player => {
+  console.assert(player.inPotAmount >= 0);
+  console.assert(player.bank >= 0);
+
+  console.assert(player.inPotAmount === Math.round(player.inPotAmount));
+  console.assert(player.bank === Math.round(player.bank));
+};
+
+const distributionWrapper = (players: IPlayer[], distribute: Function) => {
+  for (const player of players) {
+    assertPlayer(player);
+  }
+
+  const totalBanksBefore = sumBy(players, p => p.bank);
+  const totalInPotsBefore = sumBy(players, p => p.inPotAmount);
+
+  distribute();
+
+  const totalInPotsAfter = sumBy(players, p => p.inPotAmount);
+  const totalBanksAfter = sumBy(players, p => p.bank);
+
+  console.assert(totalInPotsAfter === 0);
+  console.assert(totalBanksAfter === totalBanksBefore + totalInPotsBefore);
+
+  for (const player of players) {
+    assertPlayer(player);
+  }
+};
+
 export function distributePot(
   players: IPlayer[],
   board: IBoard,
 ): void {
-  const pots = calculatePots(players);
-  const handGroups = getWinnersOrder(players, board);
+  distributionWrapper(players, () => {
+    const pots = calculatePots(players);
+    const handGroups = getWinnersOrder(players, board);
 
-  for (const pot of pots) {
-    const potWinnerGroup = handGroups.find(hg => hg.some(h => pot.playerIds.includes(h.playerId)));
-    const potWinners = potWinnerGroup.filter(h => pot.playerIds.includes(h.playerId));
+    for (const pot of pots) {
+      const potWinnerGroup = handGroups.find(hg => hg.some(h => pot.playerIds.includes(h.playerId)));
+      const potWinners = potWinnerGroup.filter(h => pot.playerIds.includes(h.playerId));
 
-    const share = Math.round(pot.amount / potWinners.length);
-    let distributed = 0;
+      const share = Math.round(pot.amount / potWinners.length);
+      let distributed = 0;
 
-    for (const potWinner of potWinners) {
-      const player = players.find(p => p.id === potWinner.playerId);
-      player.bank += share;
-      distributed += share;
+      for (const potWinner of potWinners) {
+        const player = players.find(p => p.id === potWinner.playerId);
+        player.bank += share;
+        distributed += share;
+      }
+
+      // because of rounding, distributed could be !== as pot amount
+      const delta = pot.amount - distributed;
+
+      if (delta) {
+        const potWinnerPlayers = potWinners.map(pw => players.find(p => p.id === pw.playerId));
+
+        // in order to have a consistent rule
+        // if delta > 0 we adjust with lowest bank
+        // if delta < 0 we adjust with the highest bank
+        // in case of identical banks adjust with the highest id
+        const playerToAdjust = orderBy(
+          potWinnerPlayers,
+          ['bank', 'id'],
+          [delta > 0 ? 'desc' : 'desc', 'desc'],
+        )[0];
+
+        playerToAdjust.bank += delta;
+      }
     }
 
-    // because of rounding, distributed could be !== as pot amount
-    const delta = pot.amount - distributed;
-
-    if (delta) {
-      const potWinnerPlayers = potWinners.map(pw => players.find(p => p.id === pw.playerId));
-
-      // in order to have a consistent rule
-      // if delta > 0 we adjust with lowest bank
-      // if delta < 0 we adjust with the highest bank
-      // in case of identical banks adjust with the highest id
-      const playerToAdjust = orderBy(
-        potWinnerPlayers,
-        ['bank', 'id'],
-        [delta > 0 ? 'desc' : 'desc', 'desc'],
-      )[0];
-
-      playerToAdjust.bank += delta;
+    for (const player of players) {
+      player.inPotAmount = 0;
     }
-  }
-
-  for (const player of players) {
-    player.inPotAmount = 0.;
-  }
+  });
 }

@@ -65,7 +65,7 @@ export interface IPlayer {
   name?: string;
   bank?: number;
   inPotAmount?: number;
-  inRoundAmount?: number;
+  inStreetAmount?: number;
   position?: number;
   hasFolded?: boolean;
   isAllIn?: boolean;
