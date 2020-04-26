@@ -1,5 +1,3 @@
-import { sumBy } from 'lodash';
-
 import { CardColor, HandType, IBoard, ICard, IPlayer } from './tools/interfaces';
 import { calculateHand } from './tools/helper';
 import { distributePot, getWinnersOrder, initGame } from './main';
@@ -28,9 +26,9 @@ const getCard = (designation: string): ICard => {
 
 const getCards = (designations: string[]): ICard[] => designations.map(getCard);
 
-describe('initGame', () => {
+fdescribe('initGame', () => {
   it('should return true', () => {
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 10; i++) {
       initGame();
     }
 

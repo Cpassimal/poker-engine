@@ -88,3 +88,8 @@ export interface IPot {
   size: number;
   playerIds: number[];
 }
+
+export interface ITurnEnd {
+  asked: number;
+  stop: boolean;
+}

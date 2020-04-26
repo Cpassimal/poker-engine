@@ -103,7 +103,7 @@ jasmine.addReporter(new SpecReporter({
   summary: {
     displayDuration: true,
     displayStacktrace: StacktraceOption.PRETTY,
-    displaySuccessful: true,
+    displaySuccessful: false,
   },
   customProcessors: [CustomProcessor as any],
 }));
