@@ -7,6 +7,9 @@ import {
 import * as watcher from 'node-watch';
 import 'reflect-metadata';
 import { cp } from 'shelljs';
+import { errorHandler } from './error-handler';
+import { SpecColorsProcessor } from 'jasmine-spec-reporter/built/processors/spec-colors-processor';
+import { CustomReporterResult } from 'jasmine-spec-reporter/built/spec-reporter';
 
 require('source-map-support').install({
   hookRequire: true,
@@ -27,6 +30,9 @@ const Jasmine = require('jasmine');
 process.removeAllListeners('unhandledRejection');
 process.removeAllListeners('uncaughtException');
 
+process.on('unhandledRejection', e => errorHandler(e));
+process.on('uncaughtException', e => errorHandler(e));
+
 const jasmine = new Jasmine();
 
 const environment: any = {};
@@ -46,6 +52,45 @@ jasmine.loadConfig({
 
 jasmine.clearReporters();
 
+class CustomProcessor extends SpecColorsProcessor {
+  constructor(conf: any) {
+    super(conf);
+  }
+
+  public displaySpecErrorMessages(spec: CustomReporterResult, log: String): string {
+    for (const failedExpectation of spec.failedExpectations) {
+      const e = Error();
+      const stack = (failedExpectation.matcherName ? '' : failedExpectation.message + '\n') + failedExpectation.stack;
+
+      e.stack = stack
+      .split('\n')
+      .filter((line, i) => i === 0 || line.includes('.ts'))
+      .join('\n');
+
+      errorHandler(e);
+    }
+
+    return '';
+  }
+
+  public displaySummaryErrorMessages(spec: CustomReporterResult, log: String): string {
+    for (const failedExpectation of spec.failedExpectations) {
+      const e = Error();
+      const stack = (failedExpectation.matcherName ? '' : failedExpectation.message + '\n') + failedExpectation.stack;
+
+      e.stack = stack
+      .split('\n')
+      .filter((line, i) => i === 0 || line.includes('.ts'))
+      .filter((line, i) => i < 2)
+      .join('\n');
+
+      errorHandler(e);
+    }
+
+    return '';
+  }
+}
+
 const failBack = fail;
 
 (global as any).fail = (err) => {
@@ -60,7 +105,7 @@ jasmine.addReporter(new SpecReporter({
     displayStacktrace: StacktraceOption.PRETTY,
     displaySuccessful: true,
   },
-  // customProcessors: [CustomProcessor as any],
+  customProcessors: [CustomProcessor as any],
 }));
 
 jasmine.execute();

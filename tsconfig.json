@@ -1,20 +1,27 @@
 {
-  "files": [
-    "src/main.ts",
-    "src/tools/helper.ts",
-    "src/tools/interfaces.ts",
-    "src/parse.ts",
-    "src/simulate.ts"
-  ],
+  "compileOnSave": false,
   "compilerOptions": {
-    "noImplicitAny": true,
+    "outDir": "dist",
+    "baseUrl": "src",
+    "sourceMap": true,
+    "declaration": false,
+    "downlevelIteration": true,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "target": "es5",
+    "typeRoots": [
+      "node_modules/@types"
+    ],
     "lib": [
-      "dom",
-      "es5",
-      "scripthost",
-      "es2015.promise",
-      "es2015.collection"
+      "es2017"
     ]
-  }
+  },
+  "include": [
+    "**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ],
+  "watch": true
 }

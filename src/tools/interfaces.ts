@@ -62,11 +62,11 @@ export interface ICard {
 
 export interface IPlayer {
   id: number;
-  name: string;
-  bank: number;
-  inPotAmount: number;
-  inRoundAmount: number;
-  position: number;
+  name?: string;
+  bank?: number;
+  inPotAmount?: number;
+  inRoundAmount?: number;
+  position?: number;
   hasFolded?: boolean;
   isAllIn?: boolean;
   cards?: ICard[];
@@ -81,4 +81,10 @@ export interface IBoard {
   flop3: ICard;
   turn: ICard;
   river: ICard;
+}
+
+export interface IPot {
+  amount: number;
+  size: number;
+  playerIds: number[];
 }

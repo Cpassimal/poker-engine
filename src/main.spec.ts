@@ -1,10 +1,8 @@
-import {
-  CardColor,
-  HandType,
-  ICard
-} from './tools/interfaces';
+import { sumBy } from 'lodash';
+
+import { CardColor, HandType, IBoard, ICard, IPlayer } from './tools/interfaces';
 import { calculateHand } from './tools/helper';
-import { initGame } from './main';
+import { distributePot, getWinnersOrder, initGame } from './main';
 
 const getColor = (str: string): CardColor => {
   switch (str) {
@@ -17,16 +15,18 @@ const getColor = (str: string): CardColor => {
     case 'D':
       return CardColor.Diamonds;
   }
-}
+};
 
-const getCards = (designations: string[]): ICard[] => designations.map(d => {
-  const [color, rank] = d.split('_');
+const getCard = (designation: string): ICard => {
+  const [color, rank] = designation.split('_');
 
   return {
     color: getColor(color),
     rank: +rank,
   };
-});
+};
+
+const getCards = (designations: string[]): ICard[] => designations.map(getCard);
 
 describe('initGame', () => {
   it('should return true', () => {
@@ -321,6 +321,250 @@ describe('calculateHand', () => {
       expect(hand.kicker2.rank).toBe(12);
       expect(hand.kicker3.rank).toBe(10);
       expect(hand.kicker4.rank).toBe(7);
+    });
+  });
+});
+
+describe('end game', () => {
+  const expectPlayer = player => {
+    expect(player.inPotAmount).toBeGreaterThanOrEqual(0);
+    expect(player.bank).toBeGreaterThanOrEqual(0);
+
+    expect(player.inPotAmount).toBe(Math.round(player.inPotAmount));
+    expect(player.bank).toBe(Math.round(player.bank));
+  };
+
+  const testIntegrityWrapper = (players: IPlayer[], executeTests: Function) => {
+    for (const player of players) {
+      expectPlayer(player);
+    }
+
+    const totalBanksBefore = sumBy(players, p => p.bank);
+    const totalInPotsBefore = sumBy(players, p => p.inPotAmount);
+    executeTests();
+    const totalInPotsAfter = sumBy(players, p => p.inPotAmount);
+    const totalBanksAfter = sumBy(players, p => p.bank);
+
+    expect(totalInPotsAfter).toBe(0);
+    expect(totalBanksAfter).toBe(totalBanksBefore + totalInPotsBefore);
+
+    for (const player of players) {
+      expectPlayer(player);
+    }
+  };
+
+  describe('3 all-ins over 5', () => {
+    const cards = getCards(['S_2', 'C_3', 'H_4', 'D_5', 'D_7']);
+    const board: IBoard = {
+      flop1: cards[0],
+      flop2: cards[1],
+      flop3: cards[2],
+      turn: cards[3],
+      river: cards[4],
+    };
+
+    let allIn1: IPlayer;
+    let allIn2: IPlayer;
+    let withBank1: IPlayer;
+    let withBank2: IPlayer;
+    let allIn3: IPlayer;
+    let players: IPlayer[];
+
+    // Straight high 13
+    const winner1Cards: ICard[] = [
+      getCard('S_13'),
+      getCard('S_6'),
+    ];
+    // Straight high 13
+    const winner2Cards: ICard[] = [
+      getCard('C_13'),
+      getCard('C_6'),
+    ];
+    // Pair
+    const second: ICard[] = [
+      getCard('S_8'),
+      getCard('C_8'),
+    ];
+    // HighCard 12
+    const third: ICard[] = [
+      getCard('S_12'),
+      getCard('C_10'),
+    ];
+    // HighCard 11
+    const fourth: ICard[] = [
+      getCard('H_11'),
+      getCard('D_10'),
+    ];
+
+    beforeEach(() => {
+      allIn1 = {
+        id: 1,
+        bank: 0,
+        inPotAmount: 401, // to force rounding case
+      };
+      allIn2 = {
+        id: 2,
+        bank: 0,
+        inPotAmount: 800,
+      };
+      withBank1 = {
+        id: 3,
+        bank: 1800,
+        inPotAmount: 2000,
+      };
+      withBank2 = {
+        id: 4,
+        bank: 1200,
+        inPotAmount: 2000,
+      };
+      allIn3 = {
+        id: 5,
+        bank: 0,
+        inPotAmount: 600,
+      };
+
+      players = [
+        withBank1,
+        allIn3,
+        allIn2,
+        withBank2,
+        allIn1,
+      ];
+    });
+
+    describe('getWinnersOrder', () => {
+      it('should group the two winners', () => {
+        allIn1.cards = winner1Cards;
+        allIn2.cards = winner2Cards;
+        withBank1.cards = second;
+        withBank2.cards = third;
+        allIn3.cards = fourth;
+
+        const orderedWinners = getWinnersOrder(players, board);
+
+        expect(orderedWinners.length).toBe(4);
+
+        const winnerGroup = orderedWinners[0];
+        const secondGroup = orderedWinners[1];
+        const thirdGroup = orderedWinners[2];
+        const fourthGroup = orderedWinners[3];
+
+        expect(winnerGroup.length).toBe(2);
+        expect(secondGroup.length).toBe(1);
+        expect(thirdGroup.length).toBe(1);
+        expect(fourthGroup.length).toBe(1);
+
+        expect(winnerGroup.map(g => g.playerId)).toEqual(jasmine.arrayWithExactContents([2, 2]));
+        expect(secondGroup.map(g => g.playerId)).toEqual(jasmine.arrayWithExactContents([3]));
+        expect(thirdGroup.map(g => g.playerId)).toEqual(jasmine.arrayWithExactContents([4]));
+        expect(fourthGroup.map(g => g.playerId)).toEqual(jasmine.arrayWithExactContents([5]));
+      });
+    });
+
+    describe('distributePot', () => {
+      describe('no one has folded', () => {
+        it('should distribute and split pots to the winners', () => {
+          // allIn1 and allIn2 ties
+          // they get half the pot they are in
+          // withBank1 wins over withBank2 and allIn3
+          // withBank1 gets the other pots
+          allIn1.cards = winner1Cards;
+          allIn2.cards = winner2Cards;
+          withBank1.cards = second;
+          withBank2.cards = third;
+          allIn3.cards = fourth;
+
+          testIntegrityWrapper(players, () => {
+            const initialPlayersBank: Map<number, number> = new Map<number, number>([
+              [allIn1.id, allIn1.bank],
+              [allIn2.id, allIn2.bank],
+              [withBank1.id, withBank1.bank],
+              [withBank2.id, withBank2.bank],
+              [allIn3.id, allIn3.bank],
+            ]);
+
+            distributePot(players, board);
+
+            expect(allIn1.bank).toBe(initialPlayersBank.get(allIn1.id) + 2005 / 2 + 0.5); // gets 0.5 to round to cent
+            expect(allIn2.bank).toBe(initialPlayersBank.get(allIn2.id) + 2005 / 2 - 0.5 + 796 + 600); // loses 0.5 to round to cent
+            expect(withBank1.bank).toBe(initialPlayersBank.get(withBank1.id) + 2400);
+            expect(withBank2.bank).toBe(initialPlayersBank.get(withBank2.id));
+            expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
+          });
+        });
+
+        describe('one player wins over the remaining ones but could not bet with them because of his bank', () => {
+          it('should distribute and split pots to the winners', () => {
+            // allIn1 and allIn2 ties
+            // they get half the pot they are in
+            // allIn3 wins over withBank1 and withBank2 but could not bet with them, gets nothing
+            // withBank1 wins over withBank2
+            // withBank1 gets the other pots
+            allIn1.cards = winner1Cards;
+            allIn2.cards = winner2Cards;
+            withBank1.cards = third;
+            withBank2.cards = fourth;
+            allIn3.cards = second;
+
+            testIntegrityWrapper(players, () => {
+              const initialPlayersBank: Map<number, number> = new Map<number, number>([
+                [allIn1.id, allIn1.bank],
+                [allIn2.id, allIn2.bank],
+                [withBank1.id, withBank1.bank],
+                [withBank2.id, withBank2.bank],
+                [allIn3.id, allIn3.bank],
+              ]);
+
+              distributePot(players, board);
+
+              expect(allIn1.bank).toBe(initialPlayersBank.get(allIn1.id) + 2005 / 2 + 0.5); // gets 0.5 to round to cent
+              expect(allIn2.bank).toBe(initialPlayersBank.get(allIn2.id) + 2005 / 2 - 0.5 + 796 + 600); // loses 0.5 to round to cent
+              expect(withBank1.bank).toBe(initialPlayersBank.get(withBank1.id) + 2400);
+              expect(withBank2.bank).toBe(initialPlayersBank.get(withBank2.id));
+              expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
+            });
+          });
+        });
+      });
+
+      describe('one has folded', () => {
+        it('should distribute and split pots to the winners', () => {
+          // allIn1 and allIn2 ties
+          // they get half the pot they are in
+          // withBank1 folds
+          // withBank2 wins over allIn3
+          // withBank2 gets the other pots
+          allIn1.cards = winner1Cards;
+          allIn2.cards = winner2Cards;
+          withBank1.cards = second;
+          withBank2.cards = third;
+          allIn3.cards = fourth;
+
+          testIntegrityWrapper(players, () => {
+            allIn1.hasFolded = false;
+            allIn2.hasFolded = false;
+            withBank1.hasFolded = true;
+            withBank2.hasFolded = false;
+            allIn3.hasFolded = false;
+
+            const initialPlayersBank: Map<number, number> = new Map<number, number>([
+              [allIn1.id, allIn1.bank],
+              [allIn2.id, allIn2.bank],
+              [withBank1.id, withBank1.bank],
+              [withBank2.id, withBank2.bank],
+              [allIn3.id, allIn3.bank],
+            ]);
+
+            distributePot(players, board);
+
+            expect(allIn1.bank).toBe(initialPlayersBank.get(allIn1.id) + 2005 / 2 + 0.5); // gets 0.5 to round to cent
+            expect(allIn2.bank).toBe(initialPlayersBank.get(allIn2.id) + 2005 / 2 - 0.5 + 796 + 600); // loses 0.5 to round to cent
+            expect(withBank1.bank).toBe(initialPlayersBank.get(withBank1.id));
+            expect(withBank2.bank).toBe(initialPlayersBank.get(withBank2.id) + 2400);
+            expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
+          });
+        });
+      });
     });
   });
 });
