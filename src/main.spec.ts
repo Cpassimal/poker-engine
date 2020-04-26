@@ -1,6 +1,6 @@
 import { CardColor, HandType, IBoard, ICard, IPlayer } from './tools/interfaces';
 import { calculateHand } from './tools/helper';
-import { distributePot, getWinnersOrder, initGame } from './main';
+import { distributePot, emptyBoard, getWinnersOrder, initGame, playStreet } from './main';
 
 const getColor = (str: string): CardColor => {
   switch (str) {
@@ -26,13 +26,75 @@ const getCard = (designation: string): ICard => {
 
 const getCards = (designations: string[]): ICard[] => designations.map(getCard);
 
-fdescribe('initGame', () => {
+xdescribe('initGame', () => {
   it('should return true', () => {
-    for (let i = 0; i < 10; i++) {
-      initGame();
+    let ret: IPlayer[] = null;
+
+    for (let i = 0; i < 10000000; i++) {
+      while (!ret || ret.length > 1) {
+        ret = initGame(!ret || ret.length < 2);
+
+        if (ret.length === 1) {
+          ret = null;
+        }
+      }
     }
 
     expect(true).toBe(true);
+  });
+});
+
+xdescribe('initGame', () => {
+  it('should return true', () => {
+    for (let i = 0; i < 10; i++) {
+      for (let j = 0; j < 10; j++) {
+        initGame(j === 0);
+      }
+    }
+
+    expect(true).toBe(true);
+  });
+});
+
+describe('playStreet', () => {
+  it('should stops if players cannot continue betting', () => {
+    const basePlayer: IPlayer = {
+      id: null,
+      hasFolded: false,
+      isAllIn: false,
+      inPotAmount: 0,
+      inStreetAmount: 0,
+    };
+    emptyBoard.sb = 10;
+    emptyBoard.bb = 20;
+    emptyBoard.pot = 0;
+
+    const players: IPlayer[] = [
+      {
+        ...basePlayer,
+        id: 1,
+        name: 'player1',
+        bank: emptyBoard.sb,
+        position: 1,
+      },
+      {
+        ...basePlayer,
+        id: 2,
+        name: 'player2',
+        bank: 1,
+        position: 2,
+      },
+    ];
+
+    playStreet(
+      emptyBoard,
+      players,
+      true,
+    );
+
+    for (const player of players) {
+      expect(player.isAllIn).toBe(true);
+    }
   });
 });
 
@@ -332,6 +394,9 @@ describe('end game', () => {
       flop3: cards[2],
       turn: cards[3],
       river: cards[4],
+      pot: 0,
+      bb: 10,
+      sb: 20,
     };
 
     let allIn1: IPlayer;
@@ -529,6 +594,73 @@ describe('end game', () => {
           expect(withBank2.bank).toBe(initialPlayersBank.get(withBank2.id) + 2400);
           expect(allIn3.bank).toBe(initialPlayersBank.get(allIn3.id));
         });
+      });
+    });
+  });
+
+  describe('2 all-ins with different amounts, lowest wins', () => {
+    const cards = getCards(['S_2', 'C_3', 'H_4', 'D_5', 'D_7']);
+    const board: IBoard = {
+      flop1: cards[0],
+      flop2: cards[1],
+      flop3: cards[2],
+      turn: cards[3],
+      river: cards[4],
+      pot: 0,
+      bb: 10,
+      sb: 20,
+    };
+
+    let allIn1: IPlayer;
+    let allIn2: IPlayer;
+    let players: IPlayer[];
+
+    // Straight high 13
+    const winnerCards: ICard[] = [
+      getCard('S_13'),
+      getCard('S_6'),
+    ];
+    // Pair
+    const looserCards: ICard[] = [
+      getCard('S_8'),
+      getCard('C_8'),
+    ];
+
+    beforeEach(() => {
+      allIn1 = {
+        id: 1,
+        bank: 0,
+        inPotAmount: 500,
+      };
+      allIn2 = {
+        id: 2,
+        bank: 0,
+        inPotAmount: 100,
+      };
+
+      players = [
+        allIn2,
+        allIn1,
+      ];
+    });
+
+    describe('distributePot', () => {
+      it('should distribute and split pots to the winners', () => {
+        // allIn2 wins over allIn1
+        // allIn2 get the pot he is in
+        // allIn1 get the other pot
+        allIn1.cards = looserCards;
+        allIn2.cards = winnerCards;
+
+        const initialPlayersBank: Map<number, number> = new Map<number, number>([
+          [allIn1.id, allIn1.bank],
+          [allIn2.id, allIn2.bank],
+        ]);
+
+        distributePot(players, board);
+
+        expect(allIn1.bank).toBe(initialPlayersBank.get(allIn1.id) + 400);
+        expect(allIn2.bank).toBe(initialPlayersBank.get(allIn2.id) + 200); // loses 0.5 to round to cent
       });
     });
   });

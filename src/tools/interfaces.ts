@@ -81,6 +81,9 @@ export interface IBoard {
   flop3: ICard;
   turn: ICard;
   river: ICard;
+  pot: number;
+  sb: number;
+  bb: number;
 }
 
 export interface IPot {
