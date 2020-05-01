@@ -1,6 +1,6 @@
 import { IPlayer } from './interfaces';
 
-const initialBank = 1000;
+export const initialBank = 1000;
 
 export const player1: IPlayer = {
   id: 1,

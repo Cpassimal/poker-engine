@@ -1,4 +1,5 @@
 import { orderBy, sumBy } from 'lodash';
+import * as assert from 'assert';
 
 import {
   calculateHand,
@@ -21,32 +22,45 @@ import {
   IPlayer,
   ITurnEnd
 } from './tools/interfaces';
-import { player1, player2, player3, player4 } from './tools/data';
+import { initialBank, player1, player2, player3, player4 } from './tools/data';
 
-let pot = 0;
-const sb = 10;
-const bb = 2 * sb;
-const emptyBoard: IBoard = {
+export const emptyBoard: IBoard = {
   flop1: null,
   flop2: null,
   flop3: null,
   turn: null,
   river: null,
+  pot: null,
+  sb: null,
+  bb: null,
 };
 
 let players = [player1, player2, player3, player4];
 
-export function initGame() {
+export function initGame(
+  reset: boolean = false
+): IPlayer[] {
+  if (reset) {
+    players = [player1, player2, player3, player4].map(p => ({
+      ...p,
+      bank: initialBank,
+    }));
+  }
+
   console.log('---------- START ----------');
 
   const deck = getInitialDeck();
-  const board = { ...emptyBoard };
+  const board = {
+    ...emptyBoard,
+    pot: 0,
+    sb: 10,
+    bb: 20,
+  };
 
   /**
    * init round
    */
   const currentDeck = [...deck];
-  pot = 0;
 
   for (const player of players) {
     player.cards = [];
@@ -66,9 +80,9 @@ export function initGame() {
    */
   console.log('--- PRE-FLOP ---');
 
-  playStreet(true);
+  playStreet(board, players, true);
 
-  console.log('POT: ', pot);
+  console.log('POT: ', board.pot);
 
   /**
    * FLOP
@@ -80,9 +94,11 @@ export function initGame() {
 
     console.log('--- FLOP ---', `${getCardLabel(board.flop1)} | ${getCardLabel(board.flop2)} | ${getCardLabel(board.flop3)}`);
 
-    playStreet();
+    if (players.filter(p => !p.hasFolded && !p.isAllIn).length > 1) {
+      playStreet(board, players);
+    }
 
-    console.log('POT: ', pot);
+    console.log('POT: ', board.pot);
   }
   /**
    * TURN
@@ -92,9 +108,11 @@ export function initGame() {
 
     console.log('--- TURN ---', `${getCardLabel(board.turn)}`);
 
-    playStreet();
+    if (players.filter(p => !p.hasFolded && !p.isAllIn).length > 1) {
+      playStreet(board, players);
+    }
 
-    console.log('POT: ', pot);
+    console.log('POT: ', board.pot);
   }
   /**
    * RIVER
@@ -104,22 +122,27 @@ export function initGame() {
 
     console.log('--- RIVER ---', `${getCardLabel(board.river)}`);
 
-    playStreet();
+    if (players.filter(p => !p.hasFolded && !p.isAllIn).length > 1) {
+      playStreet(board, players);
+    }
   }
 
   /**
    * END
    */
-  console.log('POT: ', pot);
+  console.log('POT: ', board.pot);
   console.log('FINAL BOARD');
-  console.table(Object.keys(board).filter(key => board[key]).map(key => getCardLabel(board[key])));
+  console.table(Object.keys(board).filter(key => board[key] && board[key].rank).map(key => getCardLabel(board[key])));
 
-  endGame(board);
+  players = endGame(players, board);
+
+  return players;
 }
 
 function endGame(
+  players: IPlayer[],
   board?: IBoard,
-): void {
+): IPlayer[] {
   distributePot(players, board)
 
   console.table(
@@ -130,17 +153,21 @@ function endGame(
   );
   console.log('---------- END ----------');
 
-  players = players.filter(p => p.bank > 0);
+  return players.filter(p => p.bank > 0);
 }
 
-function playStreet(
+export function playStreet(
+  board: IBoard,
+  players: IPlayer[],
   isPreflop: boolean = false,
-) {
+): void {
   let asked = 0;
   let turnNumber = 0;
 
   do {
     const endTurn = playTurn(
+      board,
+      players,
       isPreflop,
       turnNumber,
       asked,
@@ -149,7 +176,7 @@ function playStreet(
     asked = endTurn.asked;
 
     if (endTurn.stop) {
-      cleanPlayersAfterStreet();
+      cleanPlayersAfterStreet(players);
 
       return;
     }
@@ -165,10 +192,12 @@ function playStreet(
     && !players.filter(p => !p.hasFolded).every(p => p.inStreetAmount === asked || p.isAllIn)
   );
 
-  cleanPlayersAfterStreet();
+  cleanPlayersAfterStreet(players);
 }
 
 function playTurn(
+  board: IBoard,
+  players: IPlayer[],
   isPreflop: boolean,
   turnNumber: number,
   asked: number,
@@ -180,12 +209,16 @@ function playTurn(
       continue;
     }
 
-    const isBBOnFirstTurn = player.position === 2 && !turnNumber;
+    if (players.every(p => p.id === player.id || p.hasFolded || p.isAllIn) && asked <= player.inStreetAmount) {
+      return { asked, stop: true };
+    }
 
-    if (isPreflop && isBBOnFirstTurn) {
+    const isBBOnFirstTurn = player.position === 2 && turnNumber === 1;
+
+    if (isPreflop && isBBOnFirstTurn && player.hasInitiative) {
       endAfterCheckOrFold = true;
     } else if (player.hasInitiative || players.every(p => p.id === player.id || p.hasFolded)) {
-      return { asked, stop: false };
+      return { asked, stop: true };
     }
 
     if (player.isAllIn) {
@@ -213,7 +246,7 @@ function playTurn(
       ];
     }
 
-    // availableDecisions.push(Decision.Fold);
+    availableDecisions.push(Decision.Fold);
 
     if (isPreflop && turnNumber === 0 && [1, 2].includes(player.position)) {
       availableDecisions = [Decision.Bet];
@@ -225,20 +258,20 @@ function playTurn(
 
     switch (decision) {
       case Decision.Bet: {
-        let betValue = bb;
+        let betValue = board.bb;
 
         if (isPreflop && turnNumber === 0 && player.position === 1) {
-          betValue = sb;
+          betValue = board.sb;
         }
 
-        asked = bet(player, betValue);
+        asked = bet(board, player, betValue);
 
         console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
         break;
       }
       case Decision.Call: {
-        const betValue = bet(player, asked - player.inStreetAmount);
+        const betValue = bet(board, player, asked - player.inStreetAmount);
 
         console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
@@ -253,7 +286,7 @@ function playTurn(
       }
       case Decision.Raise: {
         const raiseValue = asked * 3;
-        const betValue = bet(player, raiseValue);
+        const betValue = bet(board, player, raiseValue);
         asked = player.inStreetAmount;
         setInitiative(players, player);
 
@@ -277,6 +310,7 @@ function playTurn(
 }
 
 function bet(
+  board: IBoard,
   player: IPlayer,
   amount: number,
 ): number {
@@ -289,7 +323,7 @@ function bet(
     player.isAllIn = true;
   }
 
-  pot += betValue;
+  board.pot += betValue;
   player.bank -= betValue;
   player.inStreetAmount += betValue;
 
@@ -368,11 +402,11 @@ export function getWinnersOrder(
 }
 
 const assertPlayer = player => {
-  console.assert(player.inPotAmount >= 0);
-  console.assert(player.bank >= 0);
+  assert(player.inPotAmount >= 0);
+  assert(player.bank >= 0);
 
-  console.assert(player.inPotAmount === Math.round(player.inPotAmount));
-  console.assert(player.bank === Math.round(player.bank));
+  assert(player.inPotAmount === Math.round(player.inPotAmount));
+  assert(player.bank === Math.round(player.bank));
 };
 
 const distributionWrapper = (players: IPlayer[], distribute: Function) => {
@@ -388,8 +422,8 @@ const distributionWrapper = (players: IPlayer[], distribute: Function) => {
   const totalInPotsAfter = sumBy(players, p => p.inPotAmount);
   const totalBanksAfter = sumBy(players, p => p.bank);
 
-  console.assert(totalInPotsAfter === 0);
-  console.assert(totalBanksAfter === totalBanksBefore + totalInPotsBefore);
+  assert(totalInPotsAfter === 0);
+  assert(totalBanksAfter === totalBanksBefore + totalInPotsBefore);
 
   for (const player of players) {
     assertPlayer(player);
@@ -443,7 +477,9 @@ export function distributePot(
   });
 }
 
-function cleanPlayersAfterStreet(): void {
+function cleanPlayersAfterStreet(
+  players: IPlayer[],
+): void {
   for (const player of players) {
     player.inPotAmount += player.inStreetAmount;
     player.inStreetAmount = 0;
