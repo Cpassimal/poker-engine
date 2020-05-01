@@ -1,5 +1,5 @@
-import { calculatePots } from './helper';
 import { IPot } from './interfaces';
+import { calculatePots } from './pots';
 
 function expectPotSize(
   pots: IPot[],

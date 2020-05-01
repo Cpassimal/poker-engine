@@ -3,7 +3,6 @@ import * as assert from 'assert';
 
 import {
   calculateHand,
-  calculatePots,
   compareHands,
   dealCards,
   getCardLabel,
@@ -23,6 +22,7 @@ import {
   ITurnEnd
 } from './tools/interfaces';
 import { initialBank, player1, player2, player3, player4 } from './tools/data';
+import { calculatePots } from './tools/pots';
 
 export const emptyBoard: IBoard = {
   flop1: null,
