@@ -1,5 +1,6 @@
 import { CardColor, IBoard, ICard, IPlayer } from './tools/interfaces';
-import { distributePot, emptyBoard, getWinnersOrder, initGame, playStreet } from './main';
+import { distributePot, getWinnersOrder, initGame, playStreet } from './main';
+import { emptyBoard } from './tools/data';
 
 export const getColor = (str: string): CardColor => {
   switch (str) {
@@ -71,14 +72,14 @@ describe('playStreet', () => {
     const players: IPlayer[] = [
       {
         ...basePlayer,
-        id: 1,
+        id: '1',
         name: 'player1',
         bank: emptyBoard.sb,
         position: 1,
       },
       {
         ...basePlayer,
-        id: 2,
+        id: '2',
         name: 'player2',
         bank: 1,
         position: 2,
@@ -146,27 +147,27 @@ describe('end game', () => {
 
     beforeEach(() => {
       allIn1 = {
-        id: 1,
+        id: '1',
         bank: 0,
         inPotAmount: 401, // to force rounding case
       };
       allIn2 = {
-        id: 2,
+        id: '2',
         bank: 0,
         inPotAmount: 800,
       };
       withBank1 = {
-        id: 3,
+        id: '3',
         bank: 1800,
         inPotAmount: 2000,
       };
       withBank2 = {
-        id: 4,
+        id: '4',
         bank: 1200,
         inPotAmount: 2000,
       };
       allIn3 = {
-        id: 5,
+        id: '5',
         bank: 0,
         inPotAmount: 600,
       };
@@ -222,7 +223,7 @@ describe('end game', () => {
           withBank2.cards = third;
           allIn3.cards = fourth;
 
-          const initialPlayersBank: Map<number, number> = new Map<number, number>([
+          const initialPlayersBank = new Map<string, number>([
             [allIn1.id, allIn1.bank],
             [allIn2.id, allIn2.bank],
             [withBank1.id, withBank1.bank],
@@ -252,7 +253,7 @@ describe('end game', () => {
             withBank2.cards = fourth;
             allIn3.cards = second;
 
-            const initialPlayersBank: Map<number, number> = new Map<number, number>([
+            const initialPlayersBank = new Map<string, number>([
               [allIn1.id, allIn1.bank],
               [allIn2.id, allIn2.bank],
               [withBank1.id, withBank1.bank],
@@ -290,7 +291,7 @@ describe('end game', () => {
           withBank2.hasFolded = false;
           allIn3.hasFolded = false;
 
-          const initialPlayersBank: Map<number, number> = new Map<number, number>([
+          const initialPlayersBank = new Map<string, number>([
             [allIn1.id, allIn1.bank],
             [allIn2.id, allIn2.bank],
             [withBank1.id, withBank1.bank],
@@ -340,12 +341,12 @@ describe('end game', () => {
 
     beforeEach(() => {
       allIn1 = {
-        id: 1,
+        id: '1',
         bank: 0,
         inPotAmount: 500,
       };
       allIn2 = {
-        id: 2,
+        id: '2',
         bank: 0,
         inPotAmount: 100,
       };
@@ -364,7 +365,7 @@ describe('end game', () => {
         allIn1.cards = looserCards;
         allIn2.cards = winnerCards;
 
-        const initialPlayersBank: Map<number, number> = new Map<number, number>([
+        const initialPlayersBank = new Map<string, number>([
           [allIn1.id, allIn1.bank],
           [allIn2.id, allIn2.bank],
         ]);

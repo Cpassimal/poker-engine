@@ -119,10 +119,10 @@ if (process.argv.includes('keepAlive')) {
   });
 }
 
-const watch = (watcher as any)('./src', { recursive: true, filter: /\.ts$/ }, () => {
-  watch.close();
-  process.exit(0);
-});
+// const watch = (watcher as any)('./src', { recursive: true, filter: /\.ts$/ }, () => {
+//   watch.close();
+//   process.exit(0);
+// });
 
 if (environment.rootDir === 'dist-test') {
   cp('-R', './src/assets', './dist-test');

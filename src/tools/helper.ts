@@ -1,8 +1,8 @@
 import {
   CardColor,
   cardMap,
-  ICard,
-  IPlayer,
+  ICard, IHand,
+  IPlayer, ITable,
 } from './interfaces';
 
 export function randomInt(min: number = 0, max: number = 100) {
@@ -111,4 +111,27 @@ export function getPlayerLabel(player: IPlayer, nbrPlayers: number): string {
   }
 
   return `${player.name} (${positionLabel})`;
+}
+
+export function getTableForFront(table: ITable): ITable {
+  return {
+    id: table.id,
+    board: table.board,
+    players: table.players.map(getPlayerForFront),
+    options: table.options,
+  };
+}
+
+export function getPlayerForFront(player: IPlayer): IPlayer {
+  return {
+    id: player.id,
+    name: player.name,
+    bank: player.bank,
+    inPotAmount: player.inPotAmount,
+    inStreetAmount: player.inStreetAmount,
+    position: player.position,
+    hasFolded: player.hasFolded,
+    isAllIn: player.isAllIn,
+    hasInitiative: player.hasInitiative,
+  };
 }

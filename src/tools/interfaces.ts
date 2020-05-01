@@ -28,7 +28,7 @@ export enum HandType {
 
 export interface IHand {
   id?: string;
-  playerId?: number;
+  playerId?: string;
   type?: HandType;
   fullHand?: ICard[];
   height?: number;
@@ -61,7 +61,7 @@ export interface ICard {
 }
 
 export interface IPlayer {
-  id: number;
+  id: string;
   name?: string;
   bank?: number;
   inPotAmount?: number;
@@ -72,7 +72,14 @@ export interface IPlayer {
   cards?: ICard[];
   hasInitiative?: boolean;
   hand?: IHand;
-  hasWon?: boolean;
+  isTurn?: boolean;
+}
+
+export interface IPlay {
+  gameId: string;
+  playerId: string;
+  decision: Decision;
+  value: number;
 }
 
 export interface IBoard {
@@ -95,4 +102,19 @@ export interface IPot {
 export interface ITurnEnd {
   asked: number;
   stop: boolean;
+}
+
+export interface ITable {
+  id: string;
+  board: IBoard;
+  players: IPlayer[];
+  logs?: string[];
+  deck?: ICard[];
+  options: ITableOptions;
+}
+
+export interface ITableOptions {
+  sb: number,
+  timer: number,
+  initBank: number,
 }
