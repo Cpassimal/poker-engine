@@ -57,11 +57,11 @@ export function pickCard(deck: ICard[]): ICard {
   return pickedCard;
 }
 
-export function dealCards(players: IPlayer[], deck: ICard[]): void {
-  for (const player of players) {
+export function dealCards(table: ITable): void {
+  for (const player of table.players) {
     player.cards = [
-      pickCard(deck),
-      pickCard(deck),
+      pickCard(table.deck),
+      pickCard(table.deck),
     ];
   }
 }
@@ -113,16 +113,16 @@ export function getPlayerLabel(player: IPlayer, nbrPlayers: number): string {
   return `${player.name} (${positionLabel})`;
 }
 
-export function getTableForFront(table: ITable): ITable {
+export function getTableForClient(table: ITable, playerId: string): ITable {
   return {
     id: table.id,
     board: table.board,
-    players: table.players.map(getPlayerForFront),
+    players: table.players.map(p => getPlayerForClient(p, playerId)),
     options: table.options,
   };
 }
 
-export function getPlayerForFront(player: IPlayer): IPlayer {
+export function getPlayerForClient(player: IPlayer, playerId: string): IPlayer {
   return {
     id: player.id,
     name: player.name,
@@ -133,5 +133,7 @@ export function getPlayerForFront(player: IPlayer): IPlayer {
     hasFolded: player.hasFolded,
     isAllIn: player.isAllIn,
     hasInitiative: player.hasInitiative,
+    isLeader: player.isLeader,
+    cards: player.id === playerId ? player.cards : [],
   };
 }

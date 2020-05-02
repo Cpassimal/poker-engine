@@ -62,6 +62,7 @@ export interface ICard {
 
 export interface IPlayer {
   id: string;
+  socketId?: string;
   name?: string;
   bank?: number;
   inPotAmount?: number;
@@ -73,6 +74,12 @@ export interface IPlayer {
   hasInitiative?: boolean;
   hand?: IHand;
   isTurn?: boolean;
+  isLeader?: boolean;
+}
+
+export interface IUser {
+  id: string;
+  name?: string;
 }
 
 export interface IPlay {
@@ -111,6 +118,7 @@ export interface ITable {
   logs?: string[];
   deck?: ICard[];
   options?: ITableOptions;
+  isRunning?: boolean;
 }
 
 export interface ITableOptions {

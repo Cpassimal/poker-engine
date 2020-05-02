@@ -3,7 +3,7 @@ import express from 'express';
 import * as bodyParser from 'body-parser';
 import { createTable, initTable, makePlay, sitToTable } from './game/game';
 import { tables } from './tools/data';
-import { getTableForFront } from './tools/helper';
+import { getTableForClient } from './tools/helper';
 import { IPlay } from './tools/interfaces';
 
 /**
@@ -22,10 +22,11 @@ app.use(bodyParser.json({
  * ROUTES
  */
 app.post('/game/init', (req, res) => {
-  const table = createTable();
+  const body = req.body;
+  const table = createTable(body.options);
   tables.push(table);
 
-  res.send(getTableForFront(table));
+  res.send(getTableForClient(table));
 });
 
 app.post('/game/:gameId/sit', (req, res) => {
@@ -35,7 +36,7 @@ app.post('/game/:gameId/sit', (req, res) => {
 
   const table = sitToTable(gameId, playerId);
 
-  res.send(getTableForFront(table));
+  res.send(getTableForClient(table));
 });
 
 app.get('/game/:gameId', (req, res) => {
@@ -46,7 +47,7 @@ app.get('/game/:gameId', (req, res) => {
     return res.sendStatus(404);
   }
 
-  res.send(getTableForFront(table));
+  res.send(getTableForClient(table));
 });
 
 app.post('/game/:gameId/play', (req, res) => {

@@ -5,7 +5,7 @@ import { getInitialDeck, getNewPosition } from '../tools/helper';
 
 import { emptyBoard, tables, players } from '../tools/data';
 
-function initPlayers(players: IPlayer[]): void {
+export function initPlayers(players: IPlayer[]): void {
   for (const player of players) {
     player.cards = [];
     player.isAllIn = false;
@@ -19,27 +19,18 @@ function initPlayers(players: IPlayer[]): void {
   players.sort((p1, p2) => p2.position < p1.position ? 1 : -1);
 }
 
-export function createTable(): ITable {
+export function createTable(
+  options: ITableOptions,
+): ITable {
   const id = uuid();
 
   return {
     id,
+    options,
+    deck: getInitialDeck(),
     players: [],
     logs: [],
   }
-}
-
-export function initTable(
-  table: ITable,
-  players: IPlayer[],
-  options: ITableOptions,
-): ITable {
-  initPlayers(players);
-
-  table.deck = getInitialDeck();
-  table.options = options;
-
-  return table;
 }
 
 export function makePlay(play: IPlay): void {
@@ -60,6 +51,10 @@ export function sitToTable(
 
   if (!player) {
     throw new Error('Player not found');
+  }
+
+  if (table.players.length === 0) {
+    player.isLeader = true;
   }
 
   table.players.push(player);
