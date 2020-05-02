@@ -106,11 +106,11 @@ export interface ITurnEnd {
 
 export interface ITable {
   id: string;
-  board: IBoard;
+  board?: IBoard;
   players: IPlayer[];
   logs?: string[];
   deck?: ICard[];
-  options: ITableOptions;
+  options?: ITableOptions;
 }
 
 export interface ITableOptions {

@@ -13,15 +13,15 @@ describe('calculatePots', () => {
   it('should calculate one pot with all players if no all-in', () => {
     const pots = calculatePots([
       {
-        id: 1,
+        id: '1',
         inPotAmount: 1600,
       },
       {
-        id: 2,
+        id: '2',
         inPotAmount: 1600,
       },
       {
-        id: 3,
+        id: '3',
         inPotAmount: 1600,
       },
     ]);
@@ -37,15 +37,15 @@ describe('calculatePots', () => {
   it('should calculate pots with one all-in', () => {
     const pots = calculatePots([
       {
-        id: 1,
+        id: '1',
         inPotAmount: 1600,
       },
       {
-        id: 2,
+        id: '2',
         inPotAmount: 400,
       },
       {
-        id: 3,
+        id: '3',
         inPotAmount: 1600,
       },
     ]);
@@ -63,23 +63,23 @@ describe('calculatePots', () => {
   it('should calculate pots with multiple all-ins', () => {
     const pots = calculatePots([
       {
-        id: 1,
+        id: '1',
         inPotAmount: 400,
       },
       {
-        id: 2,
+        id: '2',
         inPotAmount: 800,
       },
       {
-        id: 3,
+        id: '3',
         inPotAmount: 2000,
       },
       {
-        id: 4,
+        id: '4',
         inPotAmount: 2000,
       },
       {
-        id: 5,
+        id: '5',
         inPotAmount: 600,
       }
     ]);

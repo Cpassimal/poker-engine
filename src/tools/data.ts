@@ -1,6 +1,7 @@
 import { IBoard, IPlayer, ITable } from './interfaces';
 
 export const tables: ITable[] = [];
+export const players: IPlayer[] = [];
 
 export const initialBank = 1000;
 

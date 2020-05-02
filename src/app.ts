@@ -1,7 +1,7 @@
 import express from 'express';
 
 import * as bodyParser from 'body-parser';
-import { initTable, makePlay, sitToTable } from './game/game';
+import { createTable, initTable, makePlay, sitToTable } from './game/game';
 import { tables } from './tools/data';
 import { getTableForFront } from './tools/helper';
 import { IPlay } from './tools/interfaces';
@@ -22,8 +22,7 @@ app.use(bodyParser.json({
  * ROUTES
  */
 app.post('/game/init', (req, res) => {
-  const body = req.body;
-  const table = initTable(body.players, body.options);
+  const table = createTable();
   tables.push(table);
 
   res.send(getTableForFront(table));
@@ -31,10 +30,21 @@ app.post('/game/init', (req, res) => {
 
 app.post('/game/:gameId/sit', (req, res) => {
   const body = req.body;
-  const gameId = req.params[0];
+  const gameId = req.params.gameId;
   const playerId = body.playerId;
 
   const table = sitToTable(gameId, playerId);
+
+  res.send(getTableForFront(table));
+});
+
+app.get('/game/:gameId', (req, res) => {
+  const gameId = req.params.gameId;
+  const table = tables.find(t => t.id === gameId);
+
+  if (!table) {
+    return res.sendStatus(404);
+  }
 
   res.send(getTableForFront(table));
 });
