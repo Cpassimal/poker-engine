@@ -3,6 +3,8 @@ import { Server as WsServer } from 'socket.io';
 import { Server } from 'http';
 import { initServer } from '../init';
 import { Client } from './client';
+import { Decision, Street } from '../tools/interfaces';
+import { tables } from '../tools/data';
 
 let server: Server;
 let wss: WsServer;
@@ -64,6 +66,18 @@ export function waitFor(
   });
 }
 
+export function expectTurn(clients: Client[], testee: Client): void {
+  for (const client of clients) {
+    for (const player of client.players) {
+      if (player.id === testee.self.id) {
+        expect(player.isTurn).toBeTrue();
+      } else {
+        expect(player.isTurn).toBeFalse();
+      }
+    }
+  }
+}
+
 fdescribe('game', () => {
   beforeAll(async (done) => {
     const ret = initServer(port);
@@ -93,6 +107,7 @@ fdescribe('game', () => {
         {
           options: {
             sb: 10,
+            bb: 20,
             timer: 60,
             initBank: 1000,
           },
@@ -210,8 +225,8 @@ fdescribe('game', () => {
       });
     });
 
-    describe('dealCards', () => {
-      it('should start', async () => {
+    describe('game', () => {
+      it('should play', async () => {
         const clients = await generateClients(4, tableId);
 
         const leader = clients.find(c => c.isLeader);
@@ -220,6 +235,7 @@ fdescribe('game', () => {
 
         await waitFor(() => {
           expect(clients.every(c => c.cards.length === 2)).toBeTrue();
+          expect(clients.every(c => c.position)).toBeTruthy();
         });
 
         for (const client of clients) {
@@ -231,6 +247,37 @@ fdescribe('game', () => {
             }
           }
         }
+
+        const table = tables.find(t => t.id === tableId);
+
+        expect(table.street).toBe(Street.PreFlop);
+        expect(clients.every(c => c.table.turnNumber === 0)).toBeTrue();
+
+        const sb = clients.find(c => c.position === 1);
+
+        expectTurn(clients, sb);
+
+        sb.play(Decision.Bet, null);
+
+        await waitFor(() => {
+          expect(clients.every(c => c.table.players.find(p => p.id === sb.self.id).inStreetAmount === table.options.sb)).toBeTrue();
+        });
+
+        const bb = clients.find(c => c.position === 2);
+
+        expectTurn(clients, bb);
+
+        bb.play(Decision.Bet, null);
+
+        await waitFor(() => {
+          expect(clients.every(c => c.table.players.find(p => p.id === bb.self.id).inStreetAmount === table.options.sb * 2)).toBeTrue();
+        });
+
+        const utg = clients.find(c => c.position === 3);
+
+        expectTurn(clients, utg);
+
+        expect(utg.availableDecisions.sort()).toEqual([Decision.Call, Decision.Fold, Decision.Raise]);
       });
     });
   });

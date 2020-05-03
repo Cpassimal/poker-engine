@@ -31,7 +31,7 @@ describe('calculatePots', () => {
 
     const p1 = pots.find(p => p.amount === 4800);
 
-    expect(p1.playerIds).toEqual(jasmine.arrayWithExactContents([1, 2, 3]));
+    expect(p1.playerIds).toEqual(jasmine.arrayWithExactContents(['1', '2', '3']));
   })
 
   it('should calculate pots with one all-in', () => {
@@ -56,8 +56,8 @@ describe('calculatePots', () => {
     const p1 = pots.find(p => p.amount === 1200);
     const p2 = pots.find(p => p.amount === 2400);
 
-    expect(p1.playerIds).toEqual(jasmine.arrayWithExactContents([1, 2, 3]));
-    expect(p2.playerIds).toEqual(jasmine.arrayWithExactContents([1, 3]));
+    expect(p1.playerIds).toEqual(jasmine.arrayWithExactContents(['1', '2', '3']));
+    expect(p2.playerIds).toEqual(jasmine.arrayWithExactContents(['1', '3']));
   })
 
   it('should calculate pots with multiple all-ins', () => {
@@ -92,9 +92,9 @@ describe('calculatePots', () => {
     const p3 = pots.find(p => p.amount === 600);
     const p4 = pots.find(p => p.amount === 2400);
 
-    expect(p1.playerIds).toEqual(jasmine.arrayWithExactContents([1, 2, 3, 4, 5]));
-    expect(p2.playerIds).toEqual(jasmine.arrayWithExactContents([2, 3, 4, 5]));
-    expect(p3.playerIds).toEqual(jasmine.arrayWithExactContents([2, 3, 4]));
-    expect(p4.playerIds).toEqual(jasmine.arrayWithExactContents([3, 4]));
+    expect(p1.playerIds).toEqual(jasmine.arrayWithExactContents(['1', '2', '3', '4', '5']));
+    expect(p2.playerIds).toEqual(jasmine.arrayWithExactContents(['2', '3', '4', '5']));
+    expect(p3.playerIds).toEqual(jasmine.arrayWithExactContents(['2', '3', '4']));
+    expect(p4.playerIds).toEqual(jasmine.arrayWithExactContents(['3', '4']));
   })
 });

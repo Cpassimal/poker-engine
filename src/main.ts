@@ -2,10 +2,10 @@ import { orderBy, sumBy } from 'lodash';
 import * as assert from 'assert';
 
 import {
+  cleanPlayersAfterStreet,
   dealCards,
   getCardLabel,
   getInitialDeck,
-  getNewPosition,
   getPlayerLabel,
   pickCard,
   randomInt,
@@ -22,6 +22,7 @@ import {
 import { emptyBoard, initialBank, player1, player2, player3, player4 } from './tools/data';
 import { calculatePots } from './tools/pots';
 import { calculateHand, compareHands } from './tools/hands';
+import { initPlayers } from './game/game';
 
 let players = [player1, player2, player3, player4];
 
@@ -50,14 +51,7 @@ export function initGame(
    */
   const currentDeck = [...deck];
 
-  for (const player of players) {
-    player.cards = [];
-    player.isAllIn = false;
-    player.inPotAmount = 0;
-    player.inStreetAmount = 0;
-    player.hasFolded = false;
-    player.position = getNewPosition(player, players.length);
-  }
+  initPlayers(players);
 
   players.sort((p1, p2) => p2.position < p1.position ? 1 : -1);
 
@@ -183,7 +177,7 @@ export function playStreet(
   cleanPlayersAfterStreet(players);
 }
 
-function playTurn(
+export function playTurn(
   board: IBoard,
   players: IPlayer[],
   isPreflop: boolean,
@@ -252,14 +246,14 @@ function playTurn(
           betValue = board.sb;
         }
 
-        asked = bet(board, player, betValue);
+        asked = bet(player, betValue);
 
         console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
         break;
       }
       case Decision.Call: {
-        const betValue = bet(board, player, asked - player.inStreetAmount);
+        const betValue = bet(player, asked - player.inStreetAmount);
 
         console.log(`${getPlayerLabel(player, players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
 
@@ -274,7 +268,7 @@ function playTurn(
       }
       case Decision.Raise: {
         const raiseValue = asked * 3;
-        const betValue = bet(board, player, raiseValue);
+        const betValue = bet(player, raiseValue);
         asked = player.inStreetAmount;
         setInitiative(players, player);
 
@@ -295,27 +289,6 @@ function playTurn(
   }
 
   return { asked, stop: false };
-}
-
-function bet(
-  board: IBoard,
-  player: IPlayer,
-  amount: number,
-): number {
-  let betValue: number;
-
-  if (player.bank > amount) {
-    betValue = amount;
-  } else {
-    betValue = player.bank;
-    player.isAllIn = true;
-  }
-
-  board.pot += betValue;
-  player.bank -= betValue;
-  player.inStreetAmount += betValue;
-
-  return betValue;
 }
 
 export function getWinnersOrder(
@@ -463,14 +436,4 @@ export function distributePot(
       player.inPotAmount = 0;
     }
   });
-}
-
-function cleanPlayersAfterStreet(
-  players: IPlayer[],
-): void {
-  for (const player of players) {
-    player.inPotAmount += player.inStreetAmount;
-    player.inStreetAmount = 0;
-    player.hasInitiative = false;
-  }
 }

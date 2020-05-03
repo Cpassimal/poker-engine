@@ -1,9 +1,5 @@
-import {
-  CardColor,
-  cardMap,
-  ICard, IHand,
-  IPlayer, ITable,
-} from './interfaces';
+import { CardColor, cardMap, Decision, ICard, IPlayer, ITable, Street } from './interfaces';
+import { getAvailableDecisions } from '../game/game';
 
 export function randomInt(min: number = 0, max: number = 100) {
   if (
@@ -119,6 +115,9 @@ export function getTableForClient(table: ITable, playerId: string): ITable {
     board: table.board,
     players: table.players.map(p => getPlayerForClient(p, playerId)),
     options: table.options,
+    asked: table.asked,
+    turnNumber: table.turnNumber,
+    street: table.street,
   };
 }
 
@@ -134,6 +133,131 @@ export function getPlayerForClient(player: IPlayer, playerId: string): IPlayer {
     isAllIn: player.isAllIn,
     hasInitiative: player.hasInitiative,
     isLeader: player.isLeader,
+    isTurn: player.isTurn,
     cards: player.id === playerId ? player.cards : [],
+    availableDecisions: player.availableDecisions,
   };
+}
+
+export function logDecision(
+  table: ITable,
+  player:IPlayer,
+  decision: Decision,
+  betValue: number,
+): void {
+  if (betValue) {
+    console.log(`${getPlayerLabel(player, table.players.length)}: ${Decision[decision]}s, ${betValue} (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
+  } else {
+    console.log(`${getPlayerLabel(player, table.players.length)}: ${Decision[decision]}s, (in street pot: ${player.inStreetAmount}) ${player.isAllIn ? 'and is all-in' : ''}`);
+  }
+}
+
+export function getNextPlayer(
+  players: IPlayer[],
+  currentPlayer: IPlayer,
+): IPlayer {
+  const activePlayers = players
+  .filter(p => !p.isAllIn && !p.hasFolded && p.id !== currentPlayer.id)
+  .sort((p1, p2) => p1.position - p2.position);
+
+  const nextPlayer = activePlayers.find(p => p.position > currentPlayer.position);
+
+  if (nextPlayer) {
+    return nextPlayer;
+  }
+
+  return activePlayers[0];
+}
+
+export function setIsTurn(
+  table: ITable,
+  nextPlayer: IPlayer,
+): void {
+  for (const player of table.players) {
+    player.isTurn = false;
+    player.availableDecisions = [];
+  }
+
+  nextPlayer.isTurn = true;
+  nextPlayer.availableDecisions = getAvailableDecisions(table, nextPlayer);
+}
+
+export function cleanPlayersAfterStreet(
+  players: IPlayer[],
+): void {
+  for (const player of players) {
+    player.inPotAmount += player.inStreetAmount;
+    player.inStreetAmount = 0;
+    player.hasInitiative = false;
+  }
+}
+
+export function getNextStreet(table: ITable): Street {
+  switch (table.street) {
+    case Street.PreFlop:
+      return Street.Flop;
+    case Street.Flop:
+      return Street.Turn;
+    case Street.Turn:
+      return Street.River;
+    case Street.River:
+      return Street.PreFlop;
+  }
+}
+
+export function initStreet(table: ITable): boolean {
+  table.street = getNextStreet(table);
+  table.turnNumber = 0;
+
+  cleanPlayersAfterStreet(table.players);
+
+  switch (table.street) {
+    case Street.Flop:
+      table.board.flop1 = pickCard(table.deck);
+      table.board.flop2 = pickCard(table.deck);
+      table.board.flop3 = pickCard(table.deck);
+
+      break;
+    case Street.Turn:
+      table.board.turn = pickCard(table.deck);
+
+      break;
+    case Street.River:
+      table.board.river = pickCard(table.deck);
+
+      break;
+  }
+
+  const activePlayers = table.players
+  .filter(p => !p.isAllIn && !p.hasFolded)
+  .sort((p1, p2) => p1.position - p2.position);
+
+  if (activePlayers.length > 1) {
+    const firstPlayerToTalk = activePlayers[0];
+
+    setIsTurn(table, firstPlayerToTalk);
+
+    return false;
+  }
+
+  return true;
+}
+
+export function bet(
+  player: IPlayer,
+  amount: number,
+): number {
+  let betValue: number;
+
+  if (player.bank > amount) {
+    betValue = amount;
+  } else {
+    betValue = player.bank;
+    player.isAllIn = true;
+  }
+
+  player.bank -= betValue;
+  player.inStreetAmount += betValue;
+
+  return betValue;
 }
