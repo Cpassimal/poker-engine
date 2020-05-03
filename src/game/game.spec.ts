@@ -1,12 +1,8 @@
 import axios from 'axios';
-import ioClient from 'socket.io-client';
 import { Server as WsServer } from 'socket.io';
 import { Server } from 'http';
 import { initServer } from '../init';
-import { IPlayer } from '../tools/interfaces';
-import { Subject } from 'rxjs';
 import { Client } from './client';
-import { tables } from '../tools/data';
 
 let server: Server;
 let wss: WsServer;
@@ -22,7 +18,7 @@ async function generateClients(nbr: number, tableId: string): Promise<Client[]> 
       client.join(tableId);
 
       await waitFor(() => {
-        return client.players.some(p => p.id === client.self.id);
+        expect(client.players.some(p => p.id === client.self.id)).toBeTrue();
       });
 
       return client;
@@ -31,27 +27,38 @@ async function generateClients(nbr: number, tableId: string): Promise<Client[]> 
 }
 
 export function waitFor(
-  predicate: () => boolean,
+  expectations: () => any,
   timeout: number = 1000,
 ): Promise<void> {
-  const err = new Error(`expected ${predicate()} to be Truthy before ${timeout}ms`);
-
   return new Promise((res, rej) => {
     const timer = setTimeout(() => {
-      const stack = err.stack.split('\n').filter(l => !l.match(/()+at waitFor/));
-      err.stack = stack.join('\n');
-
-      // res();
-      rej(err);
+      end();
     }, timeout);
 
-    const interval = setInterval(() => {
-      const ret = predicate();
+    const end = () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+      // run expectations one last time, this time letting jasmine process the results
+      expectations();
+      res();
+    };
 
-      if (ret) {
-        clearTimeout(timer);
-        clearInterval(interval);
-        res();
+    const interval = setInterval(() => {
+      let allPasses = true;
+
+      // proxy jasmine processResult function in order to intercept the results
+      // of expects ran during expectations()
+      // if all passes, resolve immediately
+      // if one fails, keep trying until until timeout has been reached
+      const bk = (jasmine as any).Expector.prototype.processResult;
+      (jasmine as any).Expector.prototype.processResult = function (ret: any): any {
+        allPasses = allPasses && ret.pass;
+      };
+      expectations();
+      (jasmine as any).Expector.prototype.processResult = bk;
+
+      if (allPasses) {
+        end();
       }
     }, 10);
   });
@@ -150,7 +157,9 @@ fdescribe('game', () => {
         client1.join(tableId);
 
         await waitFor(() => {
-          return client1.players.length === 1 && client2.players.length === 0;
+          expect(client1.players.length).toBe(1);
+          expect(client2.players.length).toBe(0);
+          expect(client3.players.length).toBe(0);
         });
 
         expect(client1.players).toEqual([jasmine.objectContaining({ id: client1.self.id })]);
@@ -160,7 +169,9 @@ fdescribe('game', () => {
         client2.join(tableId);
 
         await waitFor(() => {
-          return client1.players.length === 2 && client2.players.length === 2;
+          expect(client1.players.length).toBe(2);
+          expect(client2.players.length).toBe(2);
+          expect(client3.players.length).toBe(0);
         });
 
         expect(client1.players).toEqual([
@@ -176,9 +187,9 @@ fdescribe('game', () => {
         client3.join(tableId);
 
         await waitFor(() => {
-          return client1.players.length === 3
-            && client2.players.length === 3
-            && client3.players.length === 3;
+          expect(client1.players.length).toBe(3);
+          expect(client2.players.length).toBe(3);
+          expect(client3.players.length).toBe(3);
         });
 
         expect(client1.players).toEqual([
@@ -208,7 +219,7 @@ fdescribe('game', () => {
         leader.start();
 
         await waitFor(() => {
-          return clients.every(c => c.cards.length === 2);
+          expect(clients.every(c => c.cards.length === 2)).toBeTrue();
         });
 
         for (const client of clients) {
