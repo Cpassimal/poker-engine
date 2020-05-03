@@ -1,8 +1,8 @@
-import { CardColor, HandType, IBoard, ICard, IPlayer } from './tools/interfaces';
-import { calculateHand } from './tools/helper';
-import { distributePot, emptyBoard, getWinnersOrder, initGame, playStreet } from './main';
+import { CardColor, IBoard, ICard, IPlayer } from './tools/interfaces';
+import { distributePot, getWinnersOrder, initGame, playStreet } from './main';
+import { emptyBoard } from './tools/data';
 
-const getColor = (str: string): CardColor => {
+export const getColor = (str: string): CardColor => {
   switch (str) {
     case 'S':
       return CardColor.Spades;
@@ -15,7 +15,7 @@ const getColor = (str: string): CardColor => {
   }
 };
 
-const getCard = (designation: string): ICard => {
+export const getCard = (designation: string): ICard => {
   const [color, rank] = designation.split('_');
 
   return {
@@ -24,7 +24,7 @@ const getCard = (designation: string): ICard => {
   };
 };
 
-const getCards = (designations: string[]): ICard[] => designations.map(getCard);
+export const getCards = (designations: string[]): ICard[] => designations.map(getCard);
 
 xdescribe('initGame', () => {
   it('should return true', () => {
@@ -72,14 +72,14 @@ describe('playStreet', () => {
     const players: IPlayer[] = [
       {
         ...basePlayer,
-        id: 1,
+        id: '1',
         name: 'player1',
         bank: emptyBoard.sb,
         position: 1,
       },
       {
         ...basePlayer,
-        id: 2,
+        id: '2',
         name: 'player2',
         bank: 1,
         position: 2,
@@ -95,293 +95,6 @@ describe('playStreet', () => {
     for (const player of players) {
       expect(player.isAllIn).toBe(true);
     }
-  });
-});
-
-describe('calculateHand', () => {
-  describe('RoyalFlush', () => {
-    it('should find it', () => {
-      const cards = getCards(['C_10', 'C_11', 'C_12', 'C_13', 'C_14', 'D_14', 'S_14']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.RoyalFlush);
-    });
-
-    it('should find it', () => {
-      const cards = getCards(['D_5', 'D_10', 'D_12', 'D_11', 'D_14', 'D_13', 'S_2']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.RoyalFlush);
-    });
-  });
-
-  describe('StraightFlush', () => {
-    it('should find it', () => {
-      const cards = getCards(['C_13', 'C_10', 'C_12', 'S_8', 'C_11', 'C_9', 'D_5']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.StraightFlush);
-      expect(hand.height).toBe(13);
-    });
-
-    it('should find it and return the higher one', () => {
-      const cards = getCards(['C_5', 'C_6', 'C_7', 'C_8', 'C_9', 'C_10', 'C_11']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.StraightFlush);
-      expect(hand.height).toBe(11);
-    });
-
-    it('should find it even with ace in first', () => {
-      const cards = getCards(['C_2', 'C_3', 'C_4', 'C_5', 'C_14', 'D_5', 'S_5']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.StraightFlush);
-      expect(hand.height).toBe(5);
-    });
-
-    it('should find it and return the higher one, even with ace in first', () => {
-      const cards = getCards(['C_14', 'C_2', 'C_3', 'C_4', 'C_5', 'C_6', 'D_3']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.StraightFlush);
-      expect(hand.fullHand.reduce((sum, c) => sum + c.rank, 0)).toBe(20);
-      expect(hand.height).toBe(6);
-    });
-  });
-
-  describe('FourOfAKind', () => {
-    it('should find it and take higher kicker', () => {
-      const cards = getCards(['C_10', 'D_10', 'H_10', 'C_14', 'D_12', 'S_5', 'S_10']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.FourOfAKind);
-      expect(hand.height).toBe(10);
-      expect(hand.kicker1.rank).toBe(14);
-    });
-
-    it('should find it and take higher kicker, even with aces', () => {
-      const cards = getCards(['C_10', 'D_14', 'H_14', 'C_14', 'D_12', 'S_14', 'S_9']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.FourOfAKind);
-      expect(hand.height).toBe(14);
-      expect(hand.kicker1.rank).toBe(12);
-    });
-  });
-
-  describe('FullHouse', () => {
-    it('should find it and take higher height', () => {
-      const cards = getCards(['C_10', 'D_10', 'H_10', 'C_14', 'D_14', 'S_5', 'S_11']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.FullHouse);
-      expect(hand.height).toBe(10);
-      expect(hand.height2).toBe(14);
-    });
-
-    it('should find it and take higher height', () => {
-      const cards = getCards(['C_10', 'D_10', 'H_10', 'C_14', 'D_14', 'S_14', 'S_11']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.FullHouse);
-      expect(hand.height).toBe(14);
-      expect(hand.height2).toBe(10);
-    });
-
-    it('should find it and take higher height and higher height2', () => {
-      const cards = getCards(['C_11', 'D_11', 'H_11', 'C_7', 'D_7', 'S_9', 'D_9']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.FullHouse);
-      expect(hand.height).toBe(11);
-      expect(hand.height2).toBe(9);
-    });
-  });
-
-  describe('Flush', () => {
-    it('should find it', () => {
-      const cards = getCards(['C_7', 'C_10', 'C_5', 'C_13', 'C_2', 'S_5', 'S_11']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.Flush);
-      expect(hand.height).toBe(13);
-      expect(hand.kicker1.rank).toBe(10);
-      expect(hand.kicker2.rank).toBe(7);
-      expect(hand.kicker3.rank).toBe(5);
-      expect(hand.kicker4.rank).toBe(2);
-    });
-
-    it('should find it and take higher height', () => {
-      const cards = getCards(['C_7', 'C_10', 'C_5', 'C_14', 'C_2', 'C_13', 'S_11']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.Flush);
-      expect(hand.height).toBe(14);
-      expect(hand.kicker1.rank).toBe(13);
-      expect(hand.kicker2.rank).toBe(10);
-      expect(hand.kicker3.rank).toBe(7);
-      expect(hand.kicker4.rank).toBe(5);
-    });
-  });
-
-  describe('Straight', () => {
-    it('should find it', () => {
-      const cards = getCards(['C_13', 'D_10', 'C_12', 'S_8', 'C_11', 'S_9', 'D_5']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.Straight);
-      expect(hand.height).toBe(13);
-    });
-
-    it('should find it and return the higher one', () => {
-      const cards = getCards(['D_5', 'C_6', 'C_7', 'D_8', 'C_9', 'C_10', 'D_11']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.Straight);
-      expect(hand.height).toBe(11);
-    });
-
-    it('should find it even with ace in first', () => {
-      const cards = getCards(['S_2', 'C_3', 'D_4', 'C_5', 'C_14', 'D_5', 'S_5']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.Straight);
-      expect(hand.height).toBe(5);
-    });
-
-    it('should find it even with ace in last', () => {
-      const cards = getCards(['S_10', 'C_11', 'D_12', 'C_13', 'C_14', 'D_5', 'S_5']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.Straight);
-      expect(hand.height).toBe(14);
-    });
-
-    it('should find it and return the higher one, even with ace in first', () => {
-      const cards = getCards(['D_14', 'C_2', 'C_3', 'S_4', 'C_5', 'C_6', 'D_3']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.Straight);
-      expect(hand.height).toBe(6);
-    });
-
-    it('should find it and return the higher one, even with ace in last', () => {
-      const cards = getCards(['D_14', 'C_10', 'C_9', 'S_11', 'C_12', 'C_13', 'D_8']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.Straight);
-      expect(hand.height).toBe(14);
-    });
-  });
-
-  describe('ThreeOfAKind', () => {
-    it('should find it and take higher kickers', () => {
-      const cards = getCards(['C_10', 'D_10', 'H_10', 'C_14', 'D_12', 'S_5', 'S_6']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.ThreeOfAKind);
-      expect(hand.height).toBe(10);
-      expect(hand.kicker1.rank).toBe(14);
-      expect(hand.kicker2.rank).toBe(12);
-    });
-  });
-
-  describe('TwoPair', () => {
-    it('should find it and take higher kickers', () => {
-      const cards = getCards(['C_10', 'D_10', 'H_14', 'C_14', 'D_12', 'S_5', 'S_6']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.TwoPair);
-      expect(hand.height).toBe(14);
-      expect(hand.height2).toBe(10);
-      expect(hand.kicker1.rank).toBe(12);
-    });
-
-    it('should find it and take higher pairs and higher kicker', () => {
-      const cards = getCards(['C_12', 'D_12', 'H_7', 'C_7', 'D_5', 'S_5', 'S_6']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.TwoPair);
-      expect(hand.height).toBe(12);
-      expect(hand.height2).toBe(7);
-      expect(hand.kicker1.rank).toBe(6);
-    });
-  });
-
-  describe('OnePair', () => {
-    it('should find it and take higher kickers', () => {
-      const cards = getCards(['C_10', 'D_10', 'H_14', 'C_7', 'D_12', 'S_5', 'S_6']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.OnePair);
-      expect(hand.height).toBe(10);
-      expect(hand.kicker1.rank).toBe(14);
-      expect(hand.kicker2.rank).toBe(12);
-      expect(hand.kicker3.rank).toBe(7);
-    });
-  });
-
-  describe('HighCard', () => {
-    it('should find it and take higher kickers', () => {
-      const cards = getCards(['C_13', 'D_10', 'H_14', 'C_7', 'D_12', 'S_5', 'S_6']);
-
-      const hand = calculateHand(cards);
-
-      expect(hand).toBeDefined();
-      expect(hand.type).toBe(HandType.HighCard);
-      expect(hand.height).toBe(14);
-      expect(hand.kicker1.rank).toBe(13);
-      expect(hand.kicker2.rank).toBe(12);
-      expect(hand.kicker3.rank).toBe(10);
-      expect(hand.kicker4.rank).toBe(7);
-    });
   });
 });
 
@@ -434,27 +147,27 @@ describe('end game', () => {
 
     beforeEach(() => {
       allIn1 = {
-        id: 1,
+        id: '1',
         bank: 0,
         inPotAmount: 401, // to force rounding case
       };
       allIn2 = {
-        id: 2,
+        id: '2',
         bank: 0,
         inPotAmount: 800,
       };
       withBank1 = {
-        id: 3,
+        id: '3',
         bank: 1800,
         inPotAmount: 2000,
       };
       withBank2 = {
-        id: 4,
+        id: '4',
         bank: 1200,
         inPotAmount: 2000,
       };
       allIn3 = {
-        id: 5,
+        id: '5',
         bank: 0,
         inPotAmount: 600,
       };
@@ -510,7 +223,7 @@ describe('end game', () => {
           withBank2.cards = third;
           allIn3.cards = fourth;
 
-          const initialPlayersBank: Map<number, number> = new Map<number, number>([
+          const initialPlayersBank = new Map<string, number>([
             [allIn1.id, allIn1.bank],
             [allIn2.id, allIn2.bank],
             [withBank1.id, withBank1.bank],
@@ -540,7 +253,7 @@ describe('end game', () => {
             withBank2.cards = fourth;
             allIn3.cards = second;
 
-            const initialPlayersBank: Map<number, number> = new Map<number, number>([
+            const initialPlayersBank = new Map<string, number>([
               [allIn1.id, allIn1.bank],
               [allIn2.id, allIn2.bank],
               [withBank1.id, withBank1.bank],
@@ -578,7 +291,7 @@ describe('end game', () => {
           withBank2.hasFolded = false;
           allIn3.hasFolded = false;
 
-          const initialPlayersBank: Map<number, number> = new Map<number, number>([
+          const initialPlayersBank = new Map<string, number>([
             [allIn1.id, allIn1.bank],
             [allIn2.id, allIn2.bank],
             [withBank1.id, withBank1.bank],
@@ -628,12 +341,12 @@ describe('end game', () => {
 
     beforeEach(() => {
       allIn1 = {
-        id: 1,
+        id: '1',
         bank: 0,
         inPotAmount: 500,
       };
       allIn2 = {
-        id: 2,
+        id: '2',
         bank: 0,
         inPotAmount: 100,
       };
@@ -652,7 +365,7 @@ describe('end game', () => {
         allIn1.cards = looserCards;
         allIn2.cards = winnerCards;
 
-        const initialPlayersBank: Map<number, number> = new Map<number, number>([
+        const initialPlayersBank = new Map<string, number>([
           [allIn1.id, allIn1.bank],
           [allIn2.id, allIn2.bank],
         ]);

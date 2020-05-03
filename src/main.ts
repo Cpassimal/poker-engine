@@ -2,9 +2,6 @@ import { orderBy, sumBy } from 'lodash';
 import * as assert from 'assert';
 
 import {
-  calculateHand,
-  calculatePots,
-  compareHands,
   dealCards,
   getCardLabel,
   getInitialDeck,
@@ -22,18 +19,9 @@ import {
   IPlayer,
   ITurnEnd
 } from './tools/interfaces';
-import { initialBank, player1, player2, player3, player4 } from './tools/data';
-
-export const emptyBoard: IBoard = {
-  flop1: null,
-  flop2: null,
-  flop3: null,
-  turn: null,
-  river: null,
-  pot: null,
-  sb: null,
-  bb: null,
-};
+import { emptyBoard, initialBank, player1, player2, player3, player4 } from './tools/data';
+import { calculatePots } from './tools/pots';
+import { calculateHand, compareHands } from './tools/hands';
 
 let players = [player1, player2, player3, player4];
 
