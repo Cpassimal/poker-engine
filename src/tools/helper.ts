@@ -1,5 +1,9 @@
-import { CardColor, cardMap, Decision, ICard, IPlayer, ITable, Street } from './interfaces';
+import { CardColor, cardMap, Decision, IBoard, ICard, IHand, IPlayer, ITable, Street } from './interfaces';
 import { getAvailableDecisions } from '../game/game';
+import { orderBy, sumBy } from 'lodash';
+import assert from "assert";
+import { calculatePots } from './pots';
+import { calculateHand, compareHands } from './hands';
 
 export function randomInt(min: number = 0, max: number = 100) {
   if (
@@ -116,7 +120,8 @@ export function getTableForClient(table: ITable, playerId: string): ITable {
     players: table.players.map(p => getPlayerForClient(p, playerId)),
     options: table.options,
     asked: table.asked,
-    turnNumber: table.turnNumber,
+    isPreFlopSecondTurn: table.isPreFlopSecondTurn,
+    hasPreFlopSecondTurnPassed: table.hasPreFlopSecondTurnPassed,
     street: table.street,
   };
 }
@@ -180,6 +185,8 @@ export function setIsTurn(
 
   nextPlayer.isTurn = true;
   nextPlayer.availableDecisions = getAvailableDecisions(table, nextPlayer);
+
+  // console.log(nextPlayer);
 }
 
 export function cleanPlayersAfterStreet(
@@ -189,6 +196,7 @@ export function cleanPlayersAfterStreet(
     player.inPotAmount += player.inStreetAmount;
     player.inStreetAmount = 0;
     player.hasInitiative = false;
+    player.availableDecisions = [];
   }
 }
 
@@ -205,9 +213,10 @@ export function getNextStreet(table: ITable): Street {
   }
 }
 
-export function initStreet(table: ITable): boolean {
+export function initStreet(table: ITable): void {
   table.street = getNextStreet(table);
-  table.turnNumber = 0;
+  table.asked = 0;
+  table.isPreFlopSecondTurn = false;
 
   cleanPlayersAfterStreet(table.players);
 
@@ -232,15 +241,9 @@ export function initStreet(table: ITable): boolean {
   .filter(p => !p.isAllIn && !p.hasFolded)
   .sort((p1, p2) => p1.position - p2.position);
 
-  if (activePlayers.length > 1) {
-    const firstPlayerToTalk = activePlayers[0];
+  const firstPlayerToTalk = activePlayers[0];
 
-    setIsTurn(table, firstPlayerToTalk);
-
-    return false;
-  }
-
-  return true;
+  setIsTurn(table, firstPlayerToTalk);
 }
 
 export function bet(
@@ -261,3 +264,150 @@ export function bet(
 
   return betValue;
 }
+
+const assertPlayer = player => {
+  assert(player.inPotAmount >= 0);
+  assert(player.bank >= 0);
+
+  assert(player.inPotAmount === Math.round(player.inPotAmount));
+  assert(player.bank === Math.round(player.bank));
+};
+
+const distributionWrapper = (players: IPlayer[], distribute: Function) => {
+  for (const player of players) {
+    assertPlayer(player);
+  }
+
+  const totalBanksBefore = sumBy(players, p => p.bank);
+  const totalInPotsBefore = sumBy(players, p => p.inPotAmount);
+
+  distribute();
+
+  const totalInPotsAfter = sumBy(players, p => p.inPotAmount);
+  const totalBanksAfter = sumBy(players, p => p.bank);
+
+  assert(totalInPotsAfter === 0);
+  assert(totalBanksAfter === totalBanksBefore + totalInPotsBefore);
+
+  for (const player of players) {
+    assertPlayer(player);
+  }
+};
+
+export function distributePot(
+  table: ITable,
+): void {
+  distributionWrapper(table.players, () => {
+    const pots = calculatePots(table.players);
+    const handGroups = getWinnersOrder(table.players, table.board);
+
+    for (const pot of pots) {
+      const potWinnerGroup = handGroups.find(hg => hg.some(h => pot.playerIds.includes(h.playerId)));
+      const potWinners = potWinnerGroup.filter(h => pot.playerIds.includes(h.playerId));
+
+      const share = Math.round(pot.amount / potWinners.length);
+      let distributed = 0;
+
+      for (const potWinner of potWinners) {
+        const player = table.players.find(p => p.id === potWinner.playerId);
+        player.bank += share;
+        distributed += share;
+      }
+
+      // because of rounding, distributed could be !== as pot amount
+      const delta = pot.amount - distributed;
+
+      if (delta) {
+        const potWinnerPlayers = potWinners.map(pw => table.players.find(p => p.id === pw.playerId));
+
+        // in order to have a consistent rule
+        // if delta > 0 we adjust with lowest bank
+        // if delta < 0 we adjust with the highest bank
+        // in case of identical banks adjust with the highest id
+        const playerToAdjust = orderBy(
+          potWinnerPlayers,
+          ['bank', 'id'],
+          [delta > 0 ? 'desc' : 'desc', 'desc'],
+        )[0];
+
+        playerToAdjust.bank += delta;
+      }
+    }
+
+    for (const player of table.players) {
+      player.inPotAmount = 0;
+    }
+  });
+}
+
+export function getWinnersOrder(
+  players: IPlayer[],
+  board: IBoard,
+): IHand[][] {
+  players = players.filter(p => !p.hasFolded);
+
+  if (players.length === 1) {
+    // only one player, natural winner
+    // since he did not fold, he is part of every pots
+    const player = players[0];
+
+    return [
+      [
+        {
+          playerId: player.id,
+        }
+      ]
+    ]
+  }
+
+  if (!board) {
+    throw new Error('A board is needed to get winners order with more than one player')
+  }
+
+  const boardCards: ICard[] = [board.flop1, board.flop2, board.flop3, board.turn, board.river];
+
+  const hands: IHand[] = [];
+
+  for (const player of players) {
+    const hand = calculateHand([
+      ...boardCards,
+      ...player.cards,
+    ]);
+
+    hand.playerId = player.id;
+
+    hand.id = [
+      hand.type,
+      hand.height,
+      hand.height2,
+      hand.kicker1?.rank,
+      hand.kicker2?.rank,
+      hand.kicker3?.rank,
+      hand.kicker4?.rank,
+    ]
+    .map(h => h ? h : '-')
+    .join('_');
+
+    player.hand = hand;
+
+    hands.push(hand);
+  }
+
+  const sortedHands = hands.sort(compareHands);
+
+  const groupedHands: IHand[][] = [];
+
+  for (const hand of sortedHands) {
+    let group = groupedHands.find(hands => compareHands(hands[0], hand) === 0);
+
+    if (!group) {
+      group = [];
+      groupedHands.push(group);
+    }
+
+    group.push(hand);
+  }
+
+  return groupedHands;
+}
+

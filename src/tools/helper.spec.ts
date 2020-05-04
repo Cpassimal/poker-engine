@@ -143,4 +143,7 @@ describe('getNextPlayer', () => {
       });
     });
   });
+
+  describe('all players folded except one', () => {
+  });
 });

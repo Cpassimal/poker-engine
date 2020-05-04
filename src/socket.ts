@@ -2,9 +2,9 @@ import { v4 as uuid } from 'uuid';
 
 import { Server } from 'socket.io';
 import { players, tables } from './tools/data';
-import { IPlay, IPlayer } from './tools/interfaces';
-import { initPlayers, executePlay, sitToTable, calculateIsTurn } from './game/game';
-import { dealCards, getPlayerForClient, getTableForClient, initStreet } from './tools/helper';
+import { IPlay, IPlayer, ITable } from './tools/interfaces';
+import { initPlayers, executePlay, sitToTable, calculateIsTurn, initTable } from './game/game';
+import { dealCards, distributePot, getPlayerForClient, getTableForClient, initStreet } from './tools/helper';
 
 export enum Events {
   Connection = 'connection',
@@ -14,7 +14,6 @@ export enum Events {
   Table = 'table',
   NewPlayer = 'new-table',
   Start = 'start',
-  GameStart = 'game-start',
   Play = 'play',
 }
 
@@ -33,11 +32,27 @@ export interface IWSPlay {
   play: IPlay;
 }
 
+export function dispatchToTable(
+  server: Server,
+  table: ITable,
+): void {
+  server.to(table.id).clients((err, socketIds) => {
+    for (const socketId of socketIds) {
+      const socketPlayer = table.players.find(p => p.socketId === socketId);
+
+      server.to(socketId).emit(Events.Table, getTableForClient(table, socketPlayer.id));
+    }
+  });
+}
+
 export function initSocket(server: Server): void {
   server.on(Events.Connection, (socket) => {
+    const playerId = uuid();
+
     const player: IPlayer = {
-      id: uuid(),
+      id: playerId,
       socketId: socket.id,
+      name: playerId.slice(0, 6),
     };
 
     players.push(player);
@@ -48,29 +63,23 @@ export function initSocket(server: Server): void {
       const table = sitToTable(body.tableId, player.id);
       socket.emit(Events.Table, getTableForClient(table, player.id));
 
-      socket.join(body.tableId);
-      socket.broadcast.to(body.tableId).emit(Events.NewPlayer, getPlayerForClient(player, null));
+      socket.join(table.id);
+      socket.broadcast.to(table.id).emit(Events.NewPlayer, getPlayerForClient(player, null));
     });
 
     socket.on(Events.Start, (body: IWSStart) => {
       const table = tables.find(t => t.id === body.tableId);
 
       if (table.players.find(p => p.id === player.id).isLeader) {
-        initPlayers(table);
+        initPlayers(table, true);
         dealCards(table);
-
-        server.to(body.tableId).clients((err, socketIds) => {
-          for (const socketId of socketIds) {
-            const socketPlayer = table.players.find(p => p.socketId === socketId);
-
-            server.to(socketId).emit(Events.GameStart, getTableForClient(table, socketPlayer.id));
-          }
-        });
+        dispatchToTable(server, table);
       }
     });
 
     socket.on(Events.Play, (body: IWSPlay) => {
       const table = tables.find(t => t.id === body.tableId);
+      let mustEndGame: boolean = false;
 
       if (
         table.players.find(p => p.id === player.id).isTurn
@@ -80,20 +89,26 @@ export function initSocket(server: Server): void {
         const nextPlayer = calculateIsTurn(table, player);
 
         if (!nextPlayer) {
-          const mustStop = initStreet(table);
-
-          if (mustStop) {
-            console.log('MUST STOP HIT');
+          if (table.players.filter(p => !p.hasFolded).length > 1) {
+            initStreet(table);
+          } else {
+            mustEndGame = true;
           }
         }
 
-        server.to(body.tableId).clients((err, socketIds) => {
-          for (const socketId of socketIds) {
-            const socketPlayer = table.players.find(p => p.socketId === socketId);
+        dispatchToTable(server, table);
 
-            server.to(socketId).emit(Events.Table, getTableForClient(table, socketPlayer.id));
-          }
-        });
+        if (mustEndGame) {
+          // to let the other one time to dispatch
+          setTimeout(() => {
+            distributePot(table);
+            initTable(table);
+            initPlayers(table, false);
+            dealCards(table);
+
+            dispatchToTable(server, table);
+          }, 100);
+        }
       }
     });
 

@@ -2,8 +2,9 @@ import { orderBy, sumBy } from 'lodash';
 import * as assert from 'assert';
 
 import {
+  bet,
   cleanPlayersAfterStreet,
-  dealCards,
+  dealCards, distributePot,
   getCardLabel,
   getInitialDeck,
   getPlayerLabel,
@@ -16,8 +17,8 @@ import {
   IBoard,
   ICard,
   IHand,
-  IPlayer,
-  ITurnEnd
+  IPlayer, ITable,
+  ITurnEnd,
 } from './tools/interfaces';
 import { emptyBoard, initialBank, player1, player2, player3, player4 } from './tools/data';
 import { calculatePots } from './tools/pots';
@@ -289,151 +290,4 @@ export function playTurn(
   }
 
   return { asked, stop: false };
-}
-
-export function getWinnersOrder(
-  players: IPlayer[],
-  board: IBoard,
-): IHand[][] {
-  players = players.filter(p => !p.hasFolded);
-
-  if (players.length === 1) {
-    // only one player, natural winner
-    // since he did not fold, he is part of every pots
-    const player = players[0];
-
-    return [
-      [
-        {
-          playerId: player.id,
-        }
-      ]
-    ]
-  }
-
-  if (!board) {
-    throw new Error('A board is needed to get winners order with more than one player')
-  }
-
-  const boardCards: ICard[] = [board.flop1, board.flop2, board.flop3, board.turn, board.river];
-
-  const hands: IHand[] = [];
-
-  for (const player of players) {
-    const hand = calculateHand([
-      ...boardCards,
-      ...player.cards,
-    ]);
-
-    hand.playerId = player.id;
-
-    hand.id = [
-      hand.type,
-      hand.height,
-      hand.height2,
-      hand.kicker1?.rank,
-      hand.kicker2?.rank,
-      hand.kicker3?.rank,
-      hand.kicker4?.rank,
-    ]
-    .map(h => h ? h : '-')
-    .join('_');
-
-    player.hand = hand;
-
-    hands.push(hand);
-  }
-
-  const sortedHands = hands.sort(compareHands);
-
-  const groupedHands: IHand[][] = [];
-
-  for (const hand of sortedHands) {
-    let group = groupedHands.find(hands => compareHands(hands[0], hand) === 0);
-
-    if (!group) {
-      group = [];
-      groupedHands.push(group);
-    }
-
-    group.push(hand);
-  }
-
-  return groupedHands;
-}
-
-const assertPlayer = player => {
-  assert(player.inPotAmount >= 0);
-  assert(player.bank >= 0);
-
-  assert(player.inPotAmount === Math.round(player.inPotAmount));
-  assert(player.bank === Math.round(player.bank));
-};
-
-const distributionWrapper = (players: IPlayer[], distribute: Function) => {
-  for (const player of players) {
-    assertPlayer(player);
-  }
-
-  const totalBanksBefore = sumBy(players, p => p.bank);
-  const totalInPotsBefore = sumBy(players, p => p.inPotAmount);
-
-  distribute();
-
-  const totalInPotsAfter = sumBy(players, p => p.inPotAmount);
-  const totalBanksAfter = sumBy(players, p => p.bank);
-
-  assert(totalInPotsAfter === 0);
-  assert(totalBanksAfter === totalBanksBefore + totalInPotsBefore);
-
-  for (const player of players) {
-    assertPlayer(player);
-  }
-};
-
-export function distributePot(
-  players: IPlayer[],
-  board: IBoard,
-): void {
-  distributionWrapper(players, () => {
-    const pots = calculatePots(players);
-    const handGroups = getWinnersOrder(players, board);
-
-    for (const pot of pots) {
-      const potWinnerGroup = handGroups.find(hg => hg.some(h => pot.playerIds.includes(h.playerId)));
-      const potWinners = potWinnerGroup.filter(h => pot.playerIds.includes(h.playerId));
-
-      const share = Math.round(pot.amount / potWinners.length);
-      let distributed = 0;
-
-      for (const potWinner of potWinners) {
-        const player = players.find(p => p.id === potWinner.playerId);
-        player.bank += share;
-        distributed += share;
-      }
-
-      // because of rounding, distributed could be !== as pot amount
-      const delta = pot.amount - distributed;
-
-      if (delta) {
-        const potWinnerPlayers = potWinners.map(pw => players.find(p => p.id === pw.playerId));
-
-        // in order to have a consistent rule
-        // if delta > 0 we adjust with lowest bank
-        // if delta < 0 we adjust with the highest bank
-        // in case of identical banks adjust with the highest id
-        const playerToAdjust = orderBy(
-          potWinnerPlayers,
-          ['bank', 'id'],
-          [delta > 0 ? 'desc' : 'desc', 'desc'],
-        )[0];
-
-        playerToAdjust.bank += delta;
-      }
-    }
-
-    for (const player of players) {
-      player.inPotAmount = 0;
-    }
-  });
 }

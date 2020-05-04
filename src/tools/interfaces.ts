@@ -74,6 +74,7 @@ export interface IPlayer {
   cards?: ICard[];
   hand?: IHand;
   hasFolded?: boolean;
+  hadInitiative?: boolean;
   hasInitiative?: boolean;
   inPotAmount?: number;
   inStreetAmount?: number;
@@ -118,13 +119,13 @@ export interface ITurnEnd {
 export interface ITable {
   id: string;
   asked: number;
-  turnNumber: number;
+  isPreFlopSecondTurn: boolean;
+  hasPreFlopSecondTurnPassed: boolean;
   board?: IBoard;
   players: IPlayer[];
   logs?: string[];
   deck?: ICard[];
   options?: ITableOptions;
-  isRunning?: boolean;
   street?: Street;
 }
 

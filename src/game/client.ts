@@ -20,10 +20,6 @@ export class Client {
       this._table = body;
     });
 
-    this._ioClient.on(Events.GameStart, (body: ITable) => {
-      this._table = body;
-    });
-
     this._ioClient.on(Events.NewPlayer, (body: IPlayer) => {
       this._newPlayer$.next(body);
     });
