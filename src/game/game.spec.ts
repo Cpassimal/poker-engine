@@ -174,7 +174,7 @@ function expectTurnInit(
   expect(clients.every(c => !c.table.isPreFlopSecondTurn)).toBeTrue();
 }
 
-fdescribe('game', () => {
+describe('game', () => {
   beforeAll(async (done) => {
     const ret = initServer(port);
     server = ret.server;
@@ -453,20 +453,25 @@ fdescribe('game', () => {
           });
 
           await waitFor(() => {
-            expect(clients.every(c => c.table.players.find(p => p.id === bb.self.id).bank === table.options.initBank + table.options.sb)).toBeTrue();
+            for (const client of clients) {
+              const clientBb = client.table.players.find(p => p.id === bb.self.id);
+              expect(clientBb.bank).toBe(table.options.initBank + table.options.sb);
+            }
           });
 
           expectTurnAdvanced(clients, table, {
             sb: {
               isTurn: true,
               availableDecisions: [Decision.Bet],
-              bank: table.options.initBank - table.options.sb,
             },
             bb: {
+              bank: table.options.initBank - table.options.sb,
+            },
+            utg: {
               bank: table.options.initBank + table.options.sb,
             },
-            utg: {},
-            btn: {},
+            btn: {
+            },
           }, 'after sb 2');
         });
       });

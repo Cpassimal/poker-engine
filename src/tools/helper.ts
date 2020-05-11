@@ -1,7 +1,7 @@
 import { CardColor, cardMap, Decision, IBoard, ICard, IHand, IPlayer, ITable, Street } from './interfaces';
 import { getAvailableDecisions } from '../game/game';
 import { orderBy, sumBy } from 'lodash';
-import assert from "assert";
+import assert from 'assert';
 import { calculatePots } from './pots';
 import { calculateHand, compareHands } from './hands';
 
@@ -217,8 +217,6 @@ export function initStreet(table: ITable): void {
   table.street = getNextStreet(table);
   table.asked = 0;
   table.isPreFlopSecondTurn = false;
-
-  cleanPlayersAfterStreet(table.players);
 
   switch (table.street) {
     case Street.Flop:

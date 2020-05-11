@@ -118,11 +118,11 @@ export interface ITurnEnd {
 
 export interface ITable {
   id: string;
-  asked: number;
-  isPreFlopSecondTurn: boolean;
-  hasPreFlopSecondTurnPassed: boolean;
+  asked?: number;
+  isPreFlopSecondTurn?: boolean;
+  hasPreFlopSecondTurnPassed?: boolean;
   board?: IBoard;
-  players: IPlayer[];
+  players?: IPlayer[];
   logs?: string[];
   deck?: ICard[];
   options?: ITableOptions;
@@ -131,6 +131,6 @@ export interface ITable {
 
 export interface ITableOptions {
   sb: number;
-  timer: number;
+  timer?: number;
   initBank: number;
 }

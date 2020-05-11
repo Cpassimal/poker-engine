@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import { players, tables } from './tools/data';
 import { IPlay, IPlayer, ITable } from './tools/interfaces';
 import { initPlayers, executePlay, sitToTable, calculateIsTurn, initTable } from './game/game';
-import { dealCards, distributePot, getPlayerForClient, getTableForClient, initStreet } from './tools/helper';
+import { cleanPlayersAfterStreet, dealCards, distributePot, getPlayerForClient, getTableForClient, initStreet } from './tools/helper';
 
 export enum Events {
   Connection = 'connection',
@@ -89,6 +89,8 @@ export function initSocket(server: Server): void {
         const nextPlayer = calculateIsTurn(table, player);
 
         if (!nextPlayer) {
+          cleanPlayersAfterStreet(table.players);
+
           if (table.players.filter(p => !p.hasFolded).length > 1) {
             initStreet(table);
           } else {
