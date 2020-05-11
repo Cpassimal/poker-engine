@@ -183,10 +183,10 @@ export function setIsTurn(
     player.availableDecisions = [];
   }
 
-  nextPlayer.isTurn = true;
-  nextPlayer.availableDecisions = getAvailableDecisions(table, nextPlayer);
-
-  // console.log(nextPlayer);
+  if (nextPlayer) {
+    nextPlayer.isTurn = true;
+    nextPlayer.availableDecisions = getAvailableDecisions(table, nextPlayer);
+  }
 }
 
 export function cleanPlayersAfterStreet(
@@ -213,10 +213,17 @@ export function getNextStreet(table: ITable): Street {
   }
 }
 
-export function initStreet(table: ITable): void {
+// return true if we shall continue
+export function initStreet(table: ITable): boolean {
   table.street = getNextStreet(table);
   table.asked = 0;
   table.isPreFlopSecondTurn = false;
+
+  const activePlayers = table.players
+  .filter(p => !p.isAllIn && !p.hasFolded)
+  .sort((p1, p2) => p1.position - p2.position);
+
+  const firstPlayerToTalk = activePlayers[0];
 
   switch (table.street) {
     case Street.Flop:
@@ -235,13 +242,13 @@ export function initStreet(table: ITable): void {
       break;
   }
 
-  const activePlayers = table.players
-  .filter(p => !p.isAllIn && !p.hasFolded)
-  .sort((p1, p2) => p1.position - p2.position);
-
-  const firstPlayerToTalk = activePlayers[0];
-
   setIsTurn(table, firstPlayerToTalk);
+
+  if (firstPlayerToTalk) {
+    return true;
+  }
+
+  return false;
 }
 
 export function bet(

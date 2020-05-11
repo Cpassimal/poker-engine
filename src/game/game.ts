@@ -100,6 +100,13 @@ export function calculateIsTurn(
   const nextPlayer = getNextPlayer(table.players, currentPlayer);
 
   if (
+    !nextPlayer
+    || (table.players.every(p => p.id === nextPlayer.id || p.hasFolded || p.isAllIn) && table.asked <= nextPlayer.inStreetAmount)
+  ) {
+    return null;
+  }
+
+  if (
     table.street === Street.PreFlop
     && nextPlayer.position === 1
     && !table.isPreFlopSecondTurn
@@ -107,12 +114,6 @@ export function calculateIsTurn(
   ) {
     table.isPreFlopSecondTurn = true;
     table.hasPreFlopSecondTurnPassed = true;
-  }
-
-  if (table.players.every(p => p.id === nextPlayer.id || p.hasFolded || p.isAllIn) && table.asked <= nextPlayer.inStreetAmount) {
-    console.log(1);
-
-    return null;
   }
 
   const isSBOnSecondTurn = table.isPreFlopSecondTurn && currentPlayer.position === 1;

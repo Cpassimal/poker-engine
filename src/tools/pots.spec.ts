@@ -124,7 +124,7 @@ export const getCard = (designation: string): ICard => {
 
 export const getCards = (designations: string[]): ICard[] => designations.map(getCard);
 
-fdescribe('end game', () => {
+describe('end game', () => {
   describe('3 all-ins over 5', () => {
     const cards = getCards(['S_2', 'C_3', 'H_4', 'D_5', 'D_7']);
     const board: IBoard = {

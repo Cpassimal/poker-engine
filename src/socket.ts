@@ -2,8 +2,8 @@ import { v4 as uuid } from 'uuid';
 
 import { Server } from 'socket.io';
 import { players, tables } from './tools/data';
-import { IPlay, IPlayer, ITable } from './tools/interfaces';
-import { initPlayers, executePlay, sitToTable, calculateIsTurn, initTable } from './game/game';
+import { IPlay, IPlayer, ITable, Street } from './tools/interfaces';
+import { calculateIsTurn, executePlay, initPlayers, initTable, sitToTable } from './game/game';
 import { cleanPlayersAfterStreet, dealCards, distributePot, getPlayerForClient, getTableForClient, initStreet } from './tools/helper';
 
 export enum Events {
@@ -35,13 +35,17 @@ export interface IWSPlay {
 export function dispatchToTable(
   server: Server,
   table: ITable,
-): void {
-  server.to(table.id).clients((err, socketIds) => {
-    for (const socketId of socketIds) {
-      const socketPlayer = table.players.find(p => p.socketId === socketId);
+): Promise<void> {
+  return new Promise((res) => {
+    server.to(table.id).clients((err, socketIds) => {
+      for (const socketId of socketIds) {
+        const socketPlayer = table.players.find(p => p.socketId === socketId);
 
-      server.to(socketId).emit(Events.Table, getTableForClient(table, socketPlayer.id));
-    }
+        server.to(socketId).emit(Events.Table, getTableForClient(table, socketPlayer.id));
+      }
+
+      res();
+    });
   });
 }
 
@@ -77,7 +81,7 @@ export function initSocket(server: Server): void {
       }
     });
 
-    socket.on(Events.Play, (body: IWSPlay) => {
+    socket.on(Events.Play, async (body: IWSPlay) => {
       const table = tables.find(t => t.id === body.tableId);
       let mustEndGame: boolean = false;
 
@@ -91,10 +95,30 @@ export function initSocket(server: Server): void {
         if (!nextPlayer) {
           cleanPlayersAfterStreet(table.players);
 
-          if (table.players.filter(p => !p.hasFolded).length > 1) {
-            initStreet(table);
-          } else {
+          if (table.street === Street.River) {
             mustEndGame = true;
+          } else {
+            if (table.players.filter(p => !p.hasFolded).length > 1) {
+              const waitForPlayerInput = initStreet(table);
+
+              if (!waitForPlayerInput) {
+                while (table.street !== Street.River) {
+                  await dispatchToTable(server, table);
+
+                  await new Promise((res) => {
+                    setTimeout(async () => {
+                      initStreet(table);
+
+                      res();
+                    }, 100);
+                  });
+                }
+
+                mustEndGame = true;
+              }
+            } else {
+              mustEndGame = true;
+            }
           }
         }
 

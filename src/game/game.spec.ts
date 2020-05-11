@@ -124,28 +124,28 @@ function expectTurnAdvanced(
       return {
         ...base,
         ...expectations.sb,
-      }
+      };
     }
 
     if (isBb) {
       return {
         ...base,
         ...expectations.bb,
-      }
+      };
     }
 
     if (isUtg) {
       return {
         ...base,
         ...expectations.utg,
-      }
+      };
     }
 
     if (isBtn) {
       return {
         ...base,
         ...expectations.btn,
-      }
+      };
     }
 
     return base;
@@ -321,7 +321,7 @@ describe('game', () => {
       });
     });
 
-    describe('game', () => {
+    describe('game 4 players', () => {
       let clients: Client[];
       let leader: Client;
       let table: ITable;
@@ -1009,6 +1009,105 @@ describe('game', () => {
             },
           }, 'after sb 3');
         });
+      });
+    });
+
+    describe('heads up',() => {
+      let clients: Client[];
+      let leader: Client;
+      let table: ITable;
+      let sb: Client;
+      let bb: Client;
+
+      beforeEach(async () => {
+        clients = await generateClients(2, tableId);
+        leader = clients.find(c => c.isLeader);
+        table = tables.find(t => t.id === tableId);
+
+        leader.start();
+
+        await waitFor(() => {
+          expect(clients.every(c => c.cards.length === 2)).toBeTrue();
+          expect(clients.every(c => c.position)).toBeTruthy();
+        });
+
+        sb = clients.find(c => c.position === 1);
+        bb = clients.find(c => c.position === 2);
+
+        expectTurnInit(clients, table);
+      });
+
+      fdescribe('bb.bank < bb',() => {
+        it('should work', async () => {
+          const sbBack = table.players.find(p => p.position === 1);
+          const bbBack = table.players.find(p => p.position === 2);
+
+          sbBack.bank = 10;
+          bbBack.bank = 1;
+
+          sb.play(Decision.Bet, null);
+
+          await waitFor(() => {
+            expect(clients.every(c => c.table.players.find(p => p.id === sb.self.id).inStreetAmount === table.options.sb)).toBeTrue();
+          });
+
+          expectTurnAdvanced(clients, table, {
+            sb: {
+              hasInitiative: true,
+              inStreetAmount: table.options.sb,
+              isAllIn: true,
+              bank: 0,
+            },
+            bb: {
+              isTurn: true,
+              availableDecisions: [Decision.Bet],
+              bank: 1,
+            },
+          }, 'after sb');
+
+          bb.play(Decision.Bet, null);
+
+          await waitFor(() => {
+            expect(clients.every(c => c.table.players.find(p => p.id === bb.self.id).inPotAmount === 1)).toBeTrue();
+          });
+
+          expectTurnAdvanced(clients, table, {
+            sb: {
+              inPotAmount: table.options.sb,
+              bank: 0,
+              isAllIn: true,
+            },
+            bb: {
+              inPotAmount: 1,
+              bank: 0,
+              isAllIn: true,
+            },
+          }, 'after bb');
+
+          await waitFor(() => {
+            expect(clients.every(c => !!c.table.board.flop1)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.flop2)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.flop3)).toBeTrue();
+            expect(clients.every(c => !c.table.board.turn)).toBeTrue();
+            expect(clients.every(c => !c.table.board.river)).toBeTrue();
+          });
+
+          await waitFor(() => {
+            expect(clients.every(c => !!c.table.board.flop1)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.flop2)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.flop3)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.turn)).toBeTrue();
+            expect(clients.every(c => !c.table.board.river)).toBeTrue();
+          });
+
+          await waitFor(() => {
+            expect(clients.every(c => !!c.table.board.flop1)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.flop2)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.flop3)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.turn)).toBeTrue();
+            expect(clients.every(c => !!c.table.board.river)).toBeTrue();
+          });
+        })
       });
     });
   });
