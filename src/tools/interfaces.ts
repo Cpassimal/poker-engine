@@ -127,6 +127,7 @@ export interface ITable {
   deck?: ICard[];
   options?: ITableOptions;
   street?: Street;
+  speed?: number;
 }
 
 export interface ITableOptions {

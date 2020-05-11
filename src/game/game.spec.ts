@@ -4,7 +4,7 @@ import { Server } from 'http';
 import { initServer } from '../init';
 import { Client } from './client';
 import { Decision, IPlayer, ITable, Street } from '../tools/interfaces';
-import { emptyBoard, tables } from '../tools/data';
+import { emptyBoard, players, tables } from '../tools/data';
 
 let server: Server;
 let wss: WsServer;
@@ -174,7 +174,7 @@ function expectTurnInit(
   expect(clients.every(c => !c.table.isPreFlopSecondTurn)).toBeTrue();
 }
 
-describe('game', () => {
+fdescribe('game', () => {
   beforeAll(async (done) => {
     const ret = initServer(port);
     server = ret.server;
@@ -1037,7 +1037,7 @@ describe('game', () => {
         expectTurnInit(clients, table);
       });
 
-      fdescribe('bb.bank < bb',() => {
+      describe('bb.bank < bb',() => {
         it('should work', async () => {
           const sbBack = table.players.find(p => p.position === 1);
           const bbBack = table.players.find(p => p.position === 2);
@@ -1069,6 +1069,10 @@ describe('game', () => {
 
           await waitFor(() => {
             expect(clients.every(c => c.table.players.find(p => p.id === bb.self.id).inPotAmount === 1)).toBeTrue();
+          });
+
+          await waitFor(() => {
+            expect(clients.every(c => c.table.players.every(p => p.isTurn === false))).toBeTrue();
           });
 
           expectTurnAdvanced(clients, table, {

@@ -11,7 +11,7 @@ export function randomInt(min: number = 0, max: number = 100) {
     || max < 0
     || min < 0
   ) {
-    throw new Error('invalid inputs')
+    throw new Error('invalid inputs');
   }
 
   return Math.floor(Math.random() * (max - min + 1) + min);
@@ -146,7 +146,7 @@ export function getPlayerForClient(player: IPlayer, playerId: string): IPlayer {
 
 export function logDecision(
   table: ITable,
-  player:IPlayer,
+  player: IPlayer,
   decision: Decision,
   betValue: number,
 ): void {
@@ -213,8 +213,9 @@ export function getNextStreet(table: ITable): Street {
   }
 }
 
-// return true if we shall continue
-export function initStreet(table: ITable): boolean {
+export function initStreet(
+  table: ITable,
+): void {
   table.street = getNextStreet(table);
   table.asked = 0;
   table.isPreFlopSecondTurn = false;
@@ -243,12 +244,6 @@ export function initStreet(table: ITable): boolean {
   }
 
   setIsTurn(table, firstPlayerToTalk);
-
-  if (firstPlayerToTalk) {
-    return true;
-  }
-
-  return false;
 }
 
 export function bet(
@@ -360,13 +355,13 @@ export function getWinnersOrder(
       [
         {
           playerId: player.id,
-        }
-      ]
-    ]
+        },
+      ],
+    ];
   }
 
   if (!board) {
-    throw new Error('A board is needed to get winners order with more than one player')
+    throw new Error('A board is needed to get winners order with more than one player');
   }
 
   const boardCards: ICard[] = [board.flop1, board.flop2, board.flop3, board.turn, board.river];

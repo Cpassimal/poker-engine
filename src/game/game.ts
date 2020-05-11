@@ -47,6 +47,7 @@ export function createTable(
     hasPreFlopSecondTurnPassed: false,
     street: Street.PreFlop,
     board: emptyBoard,
+    speed: 100,
   };
 }
 

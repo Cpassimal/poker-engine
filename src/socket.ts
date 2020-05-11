@@ -32,11 +32,11 @@ export interface IWSPlay {
   play: IPlay;
 }
 
-export function dispatchToTable(
+export async function dispatchToTable(
   server: Server,
   table: ITable,
 ): Promise<void> {
-  return new Promise((res) => {
+  await new Promise((res) => {
     server.to(table.id).clients((err, socketIds) => {
       for (const socketId of socketIds) {
         const socketPlayer = table.players.find(p => p.socketId === socketId);
@@ -47,6 +47,55 @@ export function dispatchToTable(
       res();
     });
   });
+
+  await tick(table.speed);
+}
+
+export async function tick(
+  speed: number,
+): Promise<void> {
+  return new Promise((res, rej) => {
+    setTimeout(res, 1000 / speed);
+  });
+}
+
+export async function handleEndGame(
+  server: Server,
+  table: ITable,
+): Promise<void> {
+  distributePot(table);
+  initTable(table);
+  initPlayers(table, false);
+  dealCards(table);
+
+  await dispatchToTable(server, table);
+}
+
+export async function handleStreetEnd(
+  server: Server,
+  table: ITable,
+): Promise<void> {
+  cleanPlayersAfterStreet(table.players);
+  // send players state to players
+  await dispatchToTable(server, table);
+
+  if (table.street === Street.River || table.players.filter(p => !p.hasFolded).length === 1) {
+    // players agreed on bets on river
+    // or only one player did not fold
+    // just handle handle game end
+    await handleEndGame(server, table);
+  } else {
+    // river was not dealt yet and at least 2 players still play
+    // deal new street and send new state
+    initStreet(table);
+    await dispatchToTable(server, table);
+
+    if (!table.players.some(p => p.isTurn)) {
+      // no player input needed (all active player are all in)
+      // game will continue automatically
+      return handleStreetEnd(server, table);
+    }
+  }
 }
 
 export function initSocket(server: Server): void {
@@ -71,19 +120,19 @@ export function initSocket(server: Server): void {
       socket.broadcast.to(table.id).emit(Events.NewPlayer, getPlayerForClient(player, null));
     });
 
-    socket.on(Events.Start, (body: IWSStart) => {
+    socket.on(Events.Start, async (body: IWSStart) => {
       const table = tables.find(t => t.id === body.tableId);
 
       if (table.players.find(p => p.id === player.id).isLeader) {
         initPlayers(table, true);
         dealCards(table);
-        dispatchToTable(server, table);
+
+        await dispatchToTable(server, table);
       }
     });
 
     socket.on(Events.Play, async (body: IWSPlay) => {
       const table = tables.find(t => t.id === body.tableId);
-      let mustEndGame: boolean = false;
 
       if (
         table.players.find(p => p.id === player.id).isTurn
@@ -93,48 +142,10 @@ export function initSocket(server: Server): void {
         const nextPlayer = calculateIsTurn(table, player);
 
         if (!nextPlayer) {
-          cleanPlayersAfterStreet(table.players);
-
-          if (table.street === Street.River) {
-            mustEndGame = true;
-          } else {
-            if (table.players.filter(p => !p.hasFolded).length > 1) {
-              const waitForPlayerInput = initStreet(table);
-
-              if (!waitForPlayerInput) {
-                while (table.street !== Street.River) {
-                  await dispatchToTable(server, table);
-
-                  await new Promise((res) => {
-                    setTimeout(async () => {
-                      initStreet(table);
-
-                      res();
-                    }, 100);
-                  });
-                }
-
-                mustEndGame = true;
-              }
-            } else {
-              mustEndGame = true;
-            }
-          }
+          return handleStreetEnd(server, table);
         }
 
-        dispatchToTable(server, table);
-
-        if (mustEndGame) {
-          // to let the other one time to dispatch
-          setTimeout(() => {
-            distributePot(table);
-            initTable(table);
-            initPlayers(table, false);
-            dealCards(table);
-
-            dispatchToTable(server, table);
-          }, 100);
-        }
+        return await dispatchToTable(server, table);
       }
     });
 
