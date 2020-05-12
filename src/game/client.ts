@@ -1,6 +1,7 @@
-import { ICard, IPlayer, ITable, IUser } from '../tools/interfaces';
+import { Decision, ICard, IPlay, IPlayer, ITable, IUser } from '../tools/interfaces';
 import { Subject } from 'rxjs';
 import ioClient from "socket.io-client";
+import { Events } from '../socket';
 
 export class Client {
   private _self: IUser;
@@ -15,15 +16,11 @@ export class Client {
     this._ioClient = ioClient(wsUrl);
     this._newPlayer$ = new Subject<IPlayer>();
 
-    this._ioClient.on('table', (body: ITable) => {
+    this._ioClient.on(Events.Table, (body: ITable) => {
       this._table = body;
     });
 
-    this._ioClient.on('game-start', (body: ITable) => {
-      this._table = body;
-    });
-
-    this._ioClient.on('new-player', (body: IPlayer) => {
+    this._ioClient.on(Events.NewPlayer, (body: IPlayer) => {
       this._newPlayer$.next(body);
     });
 
@@ -34,7 +31,7 @@ export class Client {
 
   public init(): Promise<void> {
     return new Promise((res, rej) => {
-      this._ioClient.on('connected', async (user: IUser) => {
+      this._ioClient.on(Events.Connected, async (user: IUser) => {
         this._self = user;
 
         res();
@@ -45,16 +42,26 @@ export class Client {
   public join(
     tableId: string,
   ): void {
-    this._ioClient.emit('join', {
+    this._ioClient.emit(Events.Join, {
       player: this._self,
       tableId,
     });
   }
 
   public start(): void {
-    this._ioClient.emit('start', {
+    this._ioClient.emit(Events.Start, {
       player: this._self,
       tableId: this._table.id,
+    });
+  }
+
+  public play(decision: Decision, value: number): void {
+    this._ioClient.emit(Events.Play, {
+      tableId: this._table.id,
+      play: {
+        decision,
+        value,
+      },
     });
   }
 
@@ -72,5 +79,17 @@ export class Client {
 
   public get cards(): ICard[] {
     return this.self?.cards || [];
+  }
+
+  public get position(): number {
+    return this.self?.position;
+  }
+
+  public get table(): ITable {
+    return this._table;
+  }
+
+  public get availableDecisions(): Decision[] {
+    return this.self?.availableDecisions;
   }
 }
