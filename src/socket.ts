@@ -82,7 +82,7 @@ export async function handleStreetEnd(
   if (table.street === Street.River || table.players.filter(p => !p.hasFolded).length === 1) {
     // players agreed on bets on river
     // or only one player did not fold
-    // just handle handle game end
+    // just handle game end
     await handleEndGame(server, table);
   } else {
     // river was not dealt yet and at least 2 players still play
