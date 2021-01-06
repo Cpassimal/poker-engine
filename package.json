@@ -34,7 +34,7 @@
     "@types/node": "13.9.3",
     "@types/shelljs": "0.8.6",
     "@types/socket.io-client": "^1.4.32",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "intl": "1.2.5",
     "jasmine": "3.5.0",
     "jasmine-core": "3.5.0",
